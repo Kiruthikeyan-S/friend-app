@@ -6,6 +6,7 @@
  */
 
 import { AudioModule } from 'expo-audio';
+import { File } from 'expo-file-system';
 import * as Speech from 'expo-speech';
 import { Platform } from 'react-native';
 import { AppConfig } from '@/constants/config';
@@ -132,9 +133,22 @@ export const VoiceService = {
 
   /**
    * Reads a local recorded audio URI (`file://...`) into a base64 string
-   * so it can be sent to the FastAPI Groq Whisper endpoint.
+   * using native `expo-file-system` JSI (`new File(uri).base64()`) on Android/iOS
+   * so the complete `.m4a` recording is sent to FastAPI Whisper STT reliably.
    */
   async readAudioUriAsBase64(uri: string): Promise<string> {
+    if (Platform.OS !== 'web') {
+      try {
+        const nativeFile = new File(uri);
+        const b64 = await nativeFile.base64();
+        if (b64 && b64.length > 64) {
+          return b64;
+        }
+      } catch {
+        // Fallback to fetch + FileReader below if needed
+      }
+    }
+
     const response = await fetch(uri);
     const blob = await response.blob();
     return new Promise<string>((resolve, reject) => {
@@ -144,7 +158,8 @@ export const VoiceService = {
         const base64 = result.includes(',') ? result.split(',')[1] : result;
         resolve(base64);
       };
-      reader.onerror = () => reject(new Error('Failed to read recorded audio file.'));
+      reader.onerror = () =>
+        reject(new Error('Failed to read recorded audio file.'));
       reader.readAsDataURL(blob);
     });
   },

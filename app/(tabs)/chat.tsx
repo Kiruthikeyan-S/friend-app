@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   FlatList,
   Keyboard,
@@ -11,7 +11,7 @@ import {
   Text,
   View,
 } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import { ChatBubble } from '@/components/ChatBubble';
@@ -21,6 +21,7 @@ import { LoadingIndicator } from '@/components/LoadingIndicator';
 import { Colors, Radius, Spacing } from '@/constants/colors';
 import { useChat } from '@/hooks/useChat';
 import { AppStore } from '@/services/appStore';
+import { VoiceService } from '@/services/voice';
 import { ChatMessage } from '@/types/chat';
 
 const QUICK_PROMPTS = [
@@ -53,6 +54,13 @@ export default function ChatScreen() {
 
   const [historyModalVisible, setHistoryModalVisible] = useState(false);
   const flatListRef = useRef<FlatList<ChatMessage>>(null);
+
+  useFocusEffect(
+    useCallback(() => {
+      // Text Chat is strictly text-only: silence any active speech immediately
+      VoiceService.stopSpeaking();
+    }, [])
+  );
 
   useEffect(() => {
     const showSub = Keyboard.addListener('keyboardDidShow', () => {
@@ -109,7 +117,7 @@ export default function ChatScreen() {
               <Text style={styles.headerSubtitle}>
                 {chatMode === 'preview'
                   ? 'Viewing Example Preview'
-                  : 'Aura AI · Instant Voice & Text'}
+                  : 'Aura AI · Text Chat Only'}
               </Text>
             </View>
 

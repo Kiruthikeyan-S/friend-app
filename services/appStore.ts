@@ -200,11 +200,11 @@ let state: AppState = {
     selectedVoiceId: 'warm-calm',
     languageCode: 'en-US',
     speechSpeed: 1.0,
-    voicePitch: 1.05,
+    voicePitch: 1.08,
     customStylePrompt:
       'Speak like a warm, caring best friend. Keep answers natural, concise, and helpful.',
     continuousMode: true,
-    autoPlayAssistantVoice: true,
+    autoPlayAssistantVoice: false,
   },
   privacySettings: {
     localAudioCleanup: true,

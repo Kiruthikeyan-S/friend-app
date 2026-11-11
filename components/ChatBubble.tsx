@@ -13,8 +13,6 @@ interface ChatBubbleProps {
 
 export function ChatBubble({
   message,
-  isPlaying,
-  onTogglePlayback,
 }: ChatBubbleProps) {
   const isUser = message.role === 'user';
   const [liked, setLiked] = useState(false);
@@ -34,35 +32,16 @@ export function ChatBubble({
 
   return (
     <View style={styles.assistantBlock}>
-      {/* Frosted Glass Assistant Message Card */}
+      {/* Frosted Glass Assistant Message Card (Text-Only Answer) */}
       <View style={styles.bubbleAssistant}>
         <Text style={styles.messageTextAssistant}>{message.content}</Text>
       </View>
 
-      {/* Glass Action Strip Underneath Assistant Message (Matching Mockup) */}
+      {/* Glass Action Strip Underneath Assistant Message */}
       <View style={styles.assistantActionRow}>
-        <IridescentMiniOrb size={26} />
+        <IridescentMiniOrb size={24} />
 
         <View style={styles.actionIconsLeft}>
-          <Pressable
-            onPress={() => onTogglePlayback(message.id, message.content)}
-            style={({ pressed }) => [
-              styles.glassIconCircle,
-              isPlaying && styles.glassIconCircleActive,
-              pressed && styles.pressed,
-            ]}
-            accessibilityRole="button"
-            accessibilityLabel={
-              isPlaying ? 'Stop voice playback' : 'Play voice aloud'
-            }
-          >
-            <Feather
-              name={isPlaying ? 'volume-x' : 'volume-2'}
-              size={13}
-              color={isPlaying ? Colors.primary : Colors.textSecondary}
-            />
-          </Pressable>
-
           <Pressable
             onPress={() => setLiked((prev) => !prev)}
             style={({ pressed }) => [
@@ -82,23 +61,6 @@ export function ChatBubble({
 
           <Text style={styles.timestampText}>{message.createdAt}</Text>
         </View>
-
-        <Pressable
-          onPress={() => onTogglePlayback(message.id, message.content)}
-          style={({ pressed }) => [
-            styles.replayGlassBtn,
-            isPlaying && styles.glassIconCircleActive,
-            pressed && styles.pressed,
-          ]}
-          accessibilityRole="button"
-          accessibilityLabel="Replay voice"
-        >
-          <Feather
-            name="repeat"
-            size={12.5}
-            color={isPlaying ? Colors.primary : Colors.textSecondary}
-          />
-        </Pressable>
       </View>
     </View>
   );

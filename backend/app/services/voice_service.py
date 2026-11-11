@@ -16,6 +16,20 @@ from openai import OpenAI
 _ENV_PATH = Path(__file__).resolve().parents[2] / ".env"
 load_dotenv(_ENV_PATH, override=True)
 
+# Common Whisper hallucinations on silent/ambient audio clips
+WHISPER_HALLUCINATION_PHRASES = {
+    "thank you.",
+    "thank you",
+    "thanks for watching.",
+    "thanks for watching!",
+    "subtitles by",
+    "you",
+    ".",
+    "..",
+    "...",
+    "bye.",
+}
+
 
 class VoiceService:
     """Handles ultra-fast speech-to-text transcription using persistent connection pooling."""
@@ -76,7 +90,10 @@ class VoiceService:
             language=lang_short if lang_short else "en",
             response_format="json",
         )
-        return str(getattr(transcription, "text", "") or "").strip()
+        text = str(getattr(transcription, "text", "") or "").strip()
+        if text.lower() in WHISPER_HALLUCINATION_PHRASES:
+            return ""
+        return text
 
     async def transcribe_base64_audio(
         self,
@@ -95,10 +112,11 @@ class VoiceService:
         try:
             clean_b64 = audio_base64.split(",")[-1].strip()
             audio_bytes = base64.b64decode(clean_b64)
-            if len(audio_bytes) < 100:
+            print(f"[VOICE STT] Received audio bytes: {len(audio_bytes)} bytes")
+            if len(audio_bytes) < 200:
                 return {
-                    "status": "error",
-                    "message": "Recorded audio clip was too short or empty.",
+                    "status": "empty",
+                    "message": "Recorded audio clip was too short.",
                     "text": "",
                 }
 
@@ -109,12 +127,14 @@ class VoiceService:
                 mime_type,
                 language,
             )
+            print(f"[VOICE STT] Transcript: {transcript!r}")
             return {
                 "status": "ok",
                 "text": transcript,
                 "language": language,
             }
         except Exception as exc:
+            print(f"[VOICE STT ERROR] {exc}")
             return {
                 "status": "error",
                 "message": f"Audio transcription failed: {exc}",

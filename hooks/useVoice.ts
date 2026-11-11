@@ -40,9 +40,9 @@ export function useVoice() {
   const [assistantResponsePreview, setAssistantResponsePreview] =
     useState<string>('');
   const [statusMessage, setStatusMessage] = useState<string>(
-    'Tap the orb to start talking—Aura replies immediately when you pause!'
+    'Listening... Speak naturally—Aura answers out loud immediately!'
   );
-  const [autoSendSeconds, setAutoSendSeconds] = useState<number>(3);
+  const [autoSendSeconds, setAutoSendSeconds] = useState<number>(4);
 
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const autoSendTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -77,11 +77,7 @@ export function useVoice() {
 
   // Real-time Voice Activity / Silence Detection (VAD) for Immediate Response
   useEffect(() => {
-    if (
-      interactionState !== 'listening' ||
-      !store.voiceSettings.continuousMode ||
-      isFinishingRef.current
-    ) {
+    if (interactionState !== 'listening' || isFinishingRef.current) {
       return;
     }
 
@@ -93,16 +89,18 @@ export function useVoice() {
     const now = Date.now();
     const elapsedMs = now - recordingStartTimestampRef.current;
 
-    // Speech threshold in dBFS (typical speech is -32 dB to -5 dB; silence is < -38 dB)
-    if (level > -34) {
+    // Android MediaRecorder metering: 20*log10(amp/32767).
+    // Room noise is typically -30 dB to -22 dB; active human speech is > -18 dB.
+    if (level > -18) {
       hasDetectedSpeechRef.current = true;
       lastSpeechTimestampRef.current = now;
     } else if (
       hasDetectedSpeechRef.current &&
-      elapsedMs >= 850 &&
-      now - lastSpeechTimestampRef.current >= 700
+      level < -24 &&
+      elapsedMs >= 1300 &&
+      now - lastSpeechTimestampRef.current >= 850
     ) {
-      // User spoke and paused for 0.7s -> Respond immediately!
+      // User spoke and paused for 0.85s -> Respond immediately!
       isFinishingRef.current = true;
       finishListeningRef.current();
     }
@@ -164,15 +162,13 @@ export function useVoice() {
         setRecordingSeconds((prev) => prev + 1);
       }, 1000);
 
-      // Fallback max window if background noise keeps metering high
-      if (AppStore.getState().voiceSettings.continuousMode) {
-        autoSendTimeoutRef.current = setTimeout(() => {
-          if (!isFinishingRef.current) {
-            isFinishingRef.current = true;
-            finishListeningRef.current();
-          }
-        }, autoSendSeconds * 1000);
-      }
+      // Automatic voice turn window: sends speech automatically even if metering stays flat
+      autoSendTimeoutRef.current = setTimeout(() => {
+        if (!isFinishingRef.current) {
+          isFinishingRef.current = true;
+          finishListeningRef.current();
+        }
+      }, autoSendSeconds * 1000);
     } catch (err) {
       isContinuousActiveRef.current = false;
       isFinishingRef.current = false;
@@ -199,8 +195,11 @@ export function useVoice() {
     setStatusMessage('Replying immediately...');
 
     try {
-      await audioRecorder.stop();
-      const recordedUri = audioRecorder.uri;
+      const stopResult = await audioRecorder.stop();
+      // Wait 80ms so Android MediaRecorder flushes the MPEG-4 moov atom to disk
+      await new Promise((resolve) => setTimeout(resolve, 80));
+      const recordedUri =
+        (stopResult as { url?: string } | undefined)?.url || audioRecorder.uri;
 
       if (!recordedUri) {
         isFinishingRef.current = false;
@@ -228,29 +227,28 @@ export function useVoice() {
         voiceStyleNote,
       });
 
-      if (res.status === 'empty' || !res.transcript) {
-        if (
-          isContinuousActiveRef.current &&
-          AppStore.getState().voiceSettings.continuousMode
-        ) {
-          setStatusMessage("Listening for your voice...");
-          setTimeout(() => {
-            if (isContinuousActiveRef.current) {
-              startListeningRef.current();
-            }
-          }, 250);
-        } else {
-          isFinishingRef.current = false;
-          setInteractionState('idle');
-          setStatusMessage("I didn't catch that. Tap the orb to speak again.");
-        }
-        return;
-      }
-
       if (res.status === 'error') {
         isFinishingRef.current = false;
         setInteractionState('idle');
         setStatusMessage(res.message || 'Voice processing error.');
+        return;
+      }
+
+      if (res.status === 'empty' || !res.transcript) {
+        isFinishingRef.current = false;
+        if (isContinuousActiveRef.current) {
+          setStatusMessage(
+            'Listening... Speak naturally—Aura answers out loud immediately!'
+          );
+          setTimeout(() => {
+            if (isContinuousActiveRef.current) {
+              startListeningRef.current();
+            }
+          }, 200);
+        } else {
+          setInteractionState('idle');
+          setStatusMessage('Tap the orb to speak.');
+        }
         return;
       }
 
@@ -312,10 +310,7 @@ export function useVoice() {
         rate: latestVoice.speechSpeed,
         onDone: () => {
           isFinishingRef.current = false;
-          if (
-            isContinuousActiveRef.current &&
-            AppStore.getState().voiceSettings.continuousMode
-          ) {
+          if (isContinuousActiveRef.current) {
             setTimeout(() => {
               if (isContinuousActiveRef.current) {
                 startListeningRef.current();
@@ -404,6 +399,7 @@ export function useVoice() {
     pendingMemoryCandidates: store.pendingMemoryCandidates,
     lastMemoryNotice: store.lastMemoryNotice,
     requestPermission,
+    startListening,
     handlePrimaryMicPress,
     cancelRecording,
     stopSpeaking,

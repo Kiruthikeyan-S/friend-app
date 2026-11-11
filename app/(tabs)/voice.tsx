@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useCallback, useRef, useState } from 'react';
 import {
   KeyboardAvoidingView,
   Modal,
@@ -10,7 +10,7 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import { GlassBackground, IridescentMiniOrb } from '@/components/GlassBackground';
@@ -33,10 +33,32 @@ export default function VoiceAssistantScreen() {
     setAutoSendSeconds,
     voiceSettings,
     lastMemoryNotice,
+    startListening,
     handlePrimaryMicPress,
     cancelRecording,
     stopSpeaking,
   } = useVoice();
+
+  const startListeningFocusRef = useRef(startListening);
+  const cancelRecordingBlurRef = useRef(cancelRecording);
+  startListeningFocusRef.current = startListening;
+  cancelRecordingBlurRef.current = cancelRecording;
+
+  useFocusEffect(
+    useCallback(() => {
+      if (!AppStore.getState().voiceSettings.continuousMode) {
+        AppStore.updateVoiceSettings({ continuousMode: true });
+      }
+      const timer = setTimeout(() => {
+        startListeningFocusRef.current();
+      }, 180);
+
+      return () => {
+        clearTimeout(timer);
+        cancelRecordingBlurRef.current();
+      };
+    }, [])
+  );
 
   const [trainModalVisible, setTrainModalVisible] = useState(false);
   const [customPromptDraft, setCustomPromptDraft] = useState(
@@ -209,11 +231,7 @@ export default function VoiceAssistantScreen() {
           <View style={styles.dualGlassCardsRow}>
             {/* Left Square Glass Card: Voice Clarity Boost / You Spoke */}
             <Pressable
-              onPress={() =>
-                AppStore.updateVoiceSettings({
-                  continuousMode: !voiceSettings.continuousMode,
-                })
-              }
+              onPress={handlePrimaryMicPress}
               style={({ pressed }) => [
                 styles.glassFeatureSquare,
                 pressed && styles.pressed,
@@ -224,11 +242,7 @@ export default function VoiceAssistantScreen() {
                   <Feather
                     name="activity"
                     size={16}
-                    color={
-                      voiceSettings.continuousMode
-                        ? Colors.primary
-                        : Colors.textPrimary
-                    }
+                    color={Colors.primary}
                   />
                 </View>
                 <View style={styles.squareIconCircle}>
@@ -248,9 +262,7 @@ export default function VoiceAssistantScreen() {
                 </Text>
                 <Text style={styles.squareCardSub} numberOfLines={3}>
                   {recognizedSpeechPreview ||
-                    (voiceSettings.continuousMode
-                      ? 'Continuous Auto-Reply ON'
-                      : 'Tap to enable Continuous Loop')}
+                    'Auto-Listening & Instant Voice Reply Active'}
                 </Text>
               </View>
             </Pressable>

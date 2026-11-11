@@ -170,9 +170,9 @@ export function useChat() {
 
         AppStore.appendLiveMessage(targetSessionId, assistantMessage);
 
-        if (AppStore.getState().voiceSettings.autoPlayAssistantVoice) {
-          speakMessageAloud(assistantMsgId, replyContent);
-        }
+        // Text Chat page is strictly for text answers (do not auto-speak out loud on text chat)
+        VoiceService.stopSpeaking();
+        setPlayingMessageId(null);
       } finally {
         setIsTyping(false);
       }
