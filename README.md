@@ -1,8 +1,13 @@
-# Aura – Personal AI Voice Assistant (Phase 1)
+# Aura – Personal AI Voice Assistant (`friend-app`)
 
-A modern, Android-first **Personal AI Voice Assistant** built with **React Native (Expo + TypeScript + Expo Router)** and a **Python FastAPI** backend foundation.
+A modern, Android-first **Personal AI Voice Assistant** built with **React Native (Expo + TypeScript + Expo Router)** and a **Python FastAPI** backend.
 
-Designed with a warm, human-centric **Light Theme** and strict **Consent-First Personal Memory** controls.
+### Key Highlights
+- **5 Distinct AI Agent Voices**: Switch instantly between **Clara** (*Warm · US*), **Julian** (*Upbeat · US*), **Maya** (*Soothing · UK*), **Arjun** (*Grounded · IN*), and **Nova** (*Playful · AU*) with live voice sample previews and custom pitch/speed/personality training.
+- **Immediate Voice Response (`~0.5s`)**: Real-time microphone audio metering & silence detection (`0.7s` pause auto-send) paired with persistent `OpenAI` SDK connection pooling (`Ollama Cloud deepseek-v4.1-flash` + `Groq openai/gpt-oss-20b` & `whisper-large-v3-turbo`).
+- **Continuous Hands-Free Conversation Loop**: Talk back and forth naturally without tapping after every sentence.
+- **Consent-First Personal Memory**: Automatically extracts personal facts (`Profile`, `Preferences`, `Work`, `Interests`) from speech and chat with explicit user permission and category controls.
+- **Clean Light-Mode UI**: Android keyboard-aware layout where input bars lift smoothly above the keyboard.
 
 ---
 
