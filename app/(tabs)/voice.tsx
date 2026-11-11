@@ -192,7 +192,7 @@ export default function VoiceAssistantScreen() {
               </Text>
               <Text style={styles.continuousSubtitle}>
                 {voiceSettings.continuousMode
-                  ? `Auto-sends after ${autoSendSeconds}s & keeps talking back and forth`
+                  ? `Auto-detects silence (0.7s pause) or ${autoSendSeconds}s max & replies immediately`
                   : 'Tap orb manually to start and finish each turn'}
               </Text>
             </View>
@@ -482,10 +482,10 @@ export default function VoiceAssistantScreen() {
               </View>
 
               <Text style={styles.fieldLabel}>
-                4. Hands-Free Phrase Window (Continuous Mode)
+                4. Max Phrase Window (Auto-Sends Immediately on Silence)
               </Text>
               <View style={styles.chipsWrap}>
-                {[4, 5, 7, 10].map((sec) => {
+                {[2, 3, 4, 6].map((sec) => {
                   const selected = autoSendSeconds === sec;
                   return (
                     <Pressable

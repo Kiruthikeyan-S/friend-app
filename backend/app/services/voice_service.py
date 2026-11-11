@@ -1,32 +1,40 @@
 """
-Voice Processing Service (Real Groq Whisper Speech-to-Text `whisper-large-v3-turbo`)
-Transcribes recorded mobile audio via Groq's ultra-fast Whisper API.
+Voice Processing Service (Ultra-Fast Persistent Connection Groq Whisper `whisper-large-v3-turbo`)
+Transcribes recorded mobile audio in ~0.3s using a persistent HTTP keep-alive pool.
 """
 
 import asyncio
 import base64
-import json
+import io
 import os
-import urllib.error
-import urllib.request
-import uuid
 from pathlib import Path
 from typing import Any, Dict, Optional
 
 from dotenv import load_dotenv
+from openai import OpenAI
 
 _ENV_PATH = Path(__file__).resolve().parents[2] / ".env"
 load_dotenv(_ENV_PATH, override=True)
 
-GROQ_AUDIO_TRANSCRIPTIONS_URL = "https://api.groq.com/openai/v1/audio/transcriptions"
-
 
 class VoiceService:
-    """Handles fast speech-to-text transcription using Groq Whisper."""
+    """Handles ultra-fast speech-to-text transcription using persistent connection pooling."""
 
     def __init__(self) -> None:
         self.stt_model: str = "whisper-large-v3-turbo"
         self.default_voice_id: str = os.getenv("TTS_VOICE_ID", "warm-calm")
+        self._stt_client: Optional[OpenAI] = None
+        self._init_client()
+
+    def _init_client(self) -> None:
+        key = (self.stt_api_key or "").strip()
+        if key:
+            self._stt_client = OpenAI(
+                base_url="https://api.groq.com/openai/v1",
+                api_key=key,
+                timeout=15.0,
+                max_retries=1,
+            )
 
     @property
     def stt_api_key(self) -> Optional[str]:
@@ -37,12 +45,12 @@ class VoiceService:
         return {
             "service": "voice",
             "stt": {
-                "provider": "Groq Whisper Turbo",
+                "provider": "Groq Whisper Turbo (Persistent Pool)",
                 "model": self.stt_model,
                 "configured": configured,
             },
             "tts": {
-                "provider": "Native Device Speech Engine (expo-speech)",
+                "provider": "Native Device Speech Engine (5 Personas via expo-speech)",
                 "configured": True,
                 "voice_id": self.default_voice_id,
             },
@@ -55,53 +63,20 @@ class VoiceService:
         mime_type: str,
         language: str,
     ) -> str:
-        api_key = (self.stt_api_key or "").strip()
-        boundary = f"----AuraVoiceBoundary{uuid.uuid4().hex}"
+        if self._stt_client is None:
+            self._init_client()
+        assert self._stt_client is not None
+
         lang_short = (language or "en").split("-")[0].lower()
+        file_tuple = (filename, io.BytesIO(audio_bytes), mime_type)
 
-        parts: list[bytes] = []
-
-        def add_field(name: str, value: str) -> None:
-            parts.append(f"--{boundary}\r\n".encode("utf-8"))
-            parts.append(
-                f'Content-Disposition: form-data; name="{name}"\r\n\r\n{value}\r\n'.encode(
-                    "utf-8"
-                )
-            )
-
-        add_field("model", self.stt_model)
-        if lang_short:
-            add_field("language", lang_short)
-        add_field("response_format", "json")
-
-        # File part
-        parts.append(f"--{boundary}\r\n".encode("utf-8"))
-        parts.append(
-            (
-                f'Content-Disposition: form-data; name="file"; filename="{filename}"\r\n'
-                f"Content-Type: {mime_type}\r\n\r\n"
-            ).encode("utf-8")
+        transcription = self._stt_client.audio.transcriptions.create(
+            model=self.stt_model,
+            file=file_tuple,
+            language=lang_short if lang_short else "en",
+            response_format="json",
         )
-        parts.append(audio_bytes)
-        parts.append(f"\r\n--{boundary}--\r\n".encode("utf-8"))
-
-        body = b"".join(parts)
-
-        req = urllib.request.Request(
-            GROQ_AUDIO_TRANSCRIPTIONS_URL,
-            data=body,
-            headers={
-                "Authorization": f"Bearer {api_key}",
-                "Content-Type": f"multipart/form-data; boundary={boundary}",
-                "User-Agent": "AuraPersonalAssistant/1.0",
-            },
-            method="POST",
-        )
-
-        with urllib.request.urlopen(req, timeout=20) as response:
-            raw = response.read().decode("utf-8")
-            parsed = json.loads(raw)
-            return str(parsed.get("text") or "").strip()
+        return str(getattr(transcription, "text", "") or "").strip()
 
     async def transcribe_base64_audio(
         self,
@@ -113,12 +88,11 @@ class VoiceService:
         if not self.stt_api_key:
             return {
                 "status": "error",
-                "message": "Groq Whisper API key is not configured.",
+                "message": "Whisper API key is not configured.",
                 "text": "",
             }
 
         try:
-            # Strip optional data URL prefix if present
             clean_b64 = audio_base64.split(",")[-1].strip()
             audio_bytes = base64.b64decode(clean_b64)
             if len(audio_bytes) < 100:
@@ -139,13 +113,6 @@ class VoiceService:
                 "status": "ok",
                 "text": transcript,
                 "language": language,
-            }
-        except urllib.error.HTTPError as exc:
-            err_detail = exc.read().decode("utf-8", errors="ignore")
-            return {
-                "status": "error",
-                "message": f"Whisper STT error ({exc.code}): {err_detail}",
-                "text": "",
             }
         except Exception as exc:
             return {

@@ -1,8 +1,9 @@
 /**
  * useVoice Hook
- * Real Microphone Recording (`expo-audio`) + Groq Whisper STT + Fast Groq LLM
+ * Real Microphone Recording (`expo-audio` with real-time Metering & Instant Silence Detection)
+ * + Whisper Turbo STT + Ollama Cloud (`deepseek-v4.1-flash`) / Groq Ultra-Fast LLM
  * + Automatic Personal Memory Analysis + Real Spoken Output (`expo-speech`)
- * + Continuous Hands-Free Conversation Loop!
+ * + Immediate Hands-Free Continuous Conversation Loop!
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -10,6 +11,7 @@ import {
   RecordingPresets,
   setAudioModeAsync,
   useAudioRecorder,
+  useAudioRecorderState,
 } from 'expo-audio';
 import { ApiService } from '@/services/api';
 import { AppStore, useAppStore } from '@/services/appStore';
@@ -18,9 +20,15 @@ import { ChatMessage } from '@/types/chat';
 
 export type VoiceInteractionState = 'idle' | 'listening' | 'processing' | 'speaking';
 
+const METERING_RECORDING_OPTIONS = {
+  ...RecordingPresets.HIGH_QUALITY,
+  isMeteringEnabled: true,
+};
+
 export function useVoice() {
   const store = useAppStore();
-  const audioRecorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY);
+  const audioRecorder = useAudioRecorder(METERING_RECORDING_OPTIONS);
+  const recorderState = useAudioRecorderState(audioRecorder, 120);
 
   const [interactionState, setInteractionState] =
     useState<VoiceInteractionState>('idle');
@@ -32,13 +40,18 @@ export function useVoice() {
   const [assistantResponsePreview, setAssistantResponsePreview] =
     useState<string>('');
   const [statusMessage, setStatusMessage] = useState<string>(
-    'Tap the orb to start talking with Aura'
+    'Tap the orb to start talking—Aura replies immediately when you pause!'
   );
-  const [autoSendSeconds, setAutoSendSeconds] = useState<number>(5);
+  const [autoSendSeconds, setAutoSendSeconds] = useState<number>(3);
 
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const autoSendTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isContinuousActiveRef = useRef<boolean>(false);
+  const isFinishingRef = useRef<boolean>(false);
+  const hasDetectedSpeechRef = useRef<boolean>(false);
+  const lastSpeechTimestampRef = useRef<number>(0);
+  const recordingStartTimestampRef = useRef<number>(0);
+
   const startListeningRef = useRef<() => Promise<void>>(async () => {});
   const finishListeningRef = useRef<() => Promise<void>>(async () => {});
 
@@ -61,6 +74,43 @@ export function useVoice() {
       VoiceService.stopSpeaking();
     };
   }, [clearTimers]);
+
+  // Real-time Voice Activity / Silence Detection (VAD) for Immediate Response
+  useEffect(() => {
+    if (
+      interactionState !== 'listening' ||
+      !store.voiceSettings.continuousMode ||
+      isFinishingRef.current
+    ) {
+      return;
+    }
+
+    const level = recorderState.metering;
+    if (typeof level !== 'number') {
+      return;
+    }
+
+    const now = Date.now();
+    const elapsedMs = now - recordingStartTimestampRef.current;
+
+    // Speech threshold in dBFS (typical speech is -32 dB to -5 dB; silence is < -38 dB)
+    if (level > -34) {
+      hasDetectedSpeechRef.current = true;
+      lastSpeechTimestampRef.current = now;
+    } else if (
+      hasDetectedSpeechRef.current &&
+      elapsedMs >= 850 &&
+      now - lastSpeechTimestampRef.current >= 700
+    ) {
+      // User spoke and paused for 0.7s -> Respond immediately!
+      isFinishingRef.current = true;
+      finishListeningRef.current();
+    }
+  }, [
+    interactionState,
+    recorderState.metering,
+    store.voiceSettings.continuousMode,
+  ]);
 
   const requestPermission = useCallback(async (): Promise<MicPermissionStatus> => {
     const status = await VoiceService.requestMicrophonePermission();
@@ -95,28 +145,37 @@ export function useVoice() {
       await audioRecorder.prepareToRecordAsync();
       audioRecorder.record();
 
+      const now = Date.now();
       isContinuousActiveRef.current = true;
+      isFinishingRef.current = false;
+      hasDetectedSpeechRef.current = false;
+      lastSpeechTimestampRef.current = now;
+      recordingStartTimestampRef.current = now;
+
       setRecordingSeconds(0);
       setInteractionState('listening');
       setStatusMessage(
         store.voiceSettings.continuousMode
-          ? `Listening... (Auto-sends after ${autoSendSeconds}s or tap orb now)`
-          : 'Listening... Tap the orb when you finish speaking'
+          ? 'Listening... Speak naturally—replies immediately when you pause!'
+          : 'Listening... Tap the orb as soon as you finish speaking'
       );
 
       timerRef.current = setInterval(() => {
         setRecordingSeconds((prev) => prev + 1);
       }, 1000);
 
-      // In Continuous Mode, automatically send the turn after `autoSendSeconds`
-      // so the user can converse hands-free without tapping!
+      // Fallback max window if background noise keeps metering high
       if (AppStore.getState().voiceSettings.continuousMode) {
         autoSendTimeoutRef.current = setTimeout(() => {
-          finishListeningRef.current();
+          if (!isFinishingRef.current) {
+            isFinishingRef.current = true;
+            finishListeningRef.current();
+          }
         }, autoSendSeconds * 1000);
       }
     } catch (err) {
       isContinuousActiveRef.current = false;
+      isFinishingRef.current = false;
       setInteractionState('idle');
       setStatusMessage(
         err instanceof Error
@@ -135,14 +194,16 @@ export function useVoice() {
 
   const finishListeningAndProcess = useCallback(async () => {
     clearTimers();
+    isFinishingRef.current = true;
     setInteractionState('processing');
-    setStatusMessage('Analyzing your speech & thinking...');
+    setStatusMessage('Replying immediately...');
 
     try {
       await audioRecorder.stop();
       const recordedUri = audioRecorder.uri;
 
       if (!recordedUri) {
+        isFinishingRef.current = false;
         setInteractionState('idle');
         setStatusMessage('No audio recorded. Tap the orb to speak again.');
         return;
@@ -172,13 +233,14 @@ export function useVoice() {
           isContinuousActiveRef.current &&
           AppStore.getState().voiceSettings.continuousMode
         ) {
-          setStatusMessage("Didn't catch any speech—listening again...");
+          setStatusMessage("Listening for your voice...");
           setTimeout(() => {
             if (isContinuousActiveRef.current) {
               startListeningRef.current();
             }
-          }, 500);
+          }, 250);
         } else {
+          isFinishingRef.current = false;
           setInteractionState('idle');
           setStatusMessage("I didn't catch that. Tap the orb to speak again.");
         }
@@ -186,6 +248,7 @@ export function useVoice() {
       }
 
       if (res.status === 'error') {
+        isFinishingRef.current = false;
         setInteractionState('idle');
         setStatusMessage(res.message || 'Voice processing error.');
         return;
@@ -228,7 +291,7 @@ export function useVoice() {
         AppStore.processExtractedMemories(res.memories);
       }
 
-      // 4. Speak Aura's reply aloud and loop back to listening if Continuous Mode is ON!
+      // 4. Speak Aura's reply aloud immediately and loop back to listening if Continuous Mode is ON!
       await setAudioModeAsync({
         allowsRecording: false,
         playsInSilentMode: true,
@@ -237,7 +300,7 @@ export function useVoice() {
       setInteractionState('speaking');
       setStatusMessage(
         AppStore.getState().voiceSettings.continuousMode
-          ? 'Aura is speaking... (Will listen again automatically)'
+          ? 'Aura is speaking... (Tap orb anytime to interrupt & talk)'
           : 'Aura is speaking...'
       );
 
@@ -248,6 +311,7 @@ export function useVoice() {
         pitch: latestVoice.voicePitch,
         rate: latestVoice.speechSpeed,
         onDone: () => {
+          isFinishingRef.current = false;
           if (
             isContinuousActiveRef.current &&
             AppStore.getState().voiceSettings.continuousMode
@@ -256,23 +320,26 @@ export function useVoice() {
               if (isContinuousActiveRef.current) {
                 startListeningRef.current();
               }
-            }, 350);
+            }, 200);
           } else {
             setInteractionState('idle');
             setStatusMessage('Tap the orb to talk again');
           }
         },
         onStopped: () => {
+          isFinishingRef.current = false;
           setInteractionState('idle');
           setStatusMessage('Paused. Tap the orb when ready.');
         },
         onError: () => {
+          isFinishingRef.current = false;
           setInteractionState('idle');
           setStatusMessage('Tap the orb to talk again');
         },
       });
     } catch (err) {
       isContinuousActiveRef.current = false;
+      isFinishingRef.current = false;
       setInteractionState('idle');
       setStatusMessage(
         err instanceof Error
@@ -289,6 +356,7 @@ export function useVoice() {
 
   const cancelRecording = useCallback(async () => {
     isContinuousActiveRef.current = false;
+    isFinishingRef.current = false;
     clearTimers();
     try {
       await audioRecorder.stop();
@@ -303,6 +371,7 @@ export function useVoice() {
 
   const stopSpeaking = useCallback(() => {
     isContinuousActiveRef.current = false;
+    isFinishingRef.current = false;
     clearTimers();
     VoiceService.stopSpeaking();
     setInteractionState('idle');
