@@ -1,56 +1,119 @@
-# Welcome to your Expo app 👋
+# Aura – Personal AI Voice Assistant (Phase 1)
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+A modern, Android-first **Personal AI Voice Assistant** built with **React Native (Expo + TypeScript + Expo Router)** and a **Python FastAPI** backend foundation.
 
-## Get started
+Designed with a warm, human-centric **Light Theme** and strict **Consent-First Personal Memory** controls.
 
-1. Install dependencies
+---
 
-   ```bash
-   npm install
-   ```
+## 1. Project Structure
 
-2. Start the app
+```text
+app/
+  (auth)/
+    _layout.tsx
+    login.tsx
+    register.tsx
+  (tabs)/
+    _layout.tsx
+    chat.tsx
+    voice.tsx
+    memory.tsx
+    settings.tsx
+  _layout.tsx
+  index.tsx
 
-   ```bash
-   npx expo start
-   ```
+components/
+  ChatBubble.tsx
+  ChatInput.tsx
+  VoiceButton.tsx
+  MemoryCard.tsx
+  LoadingIndicator.tsx
 
-In the output, you'll find options to open the app in a
+services/
+  api.ts
+  appStore.ts
+  auth.ts
+  voice.ts
 
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
+hooks/
+  useChat.ts
+  useVoice.ts
 
-You can start developing by editing the files inside the **src/app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
+types/
+  chat.ts
+  memory.ts
+  user.ts
 
-## Get a fresh project
+constants/
+  colors.ts
+  config.ts
 
-When you're ready, run:
-
-```bash
-npm run reset-project
+backend/
+  app/
+    main.py
+    routes/
+      chat.py
+      voice.py
+      memory.py
+      conversations.py
+    services/
+      llm_service.py
+      voice_service.py
+      memory_service.py
+      conversation_service.py
+  requirements.txt
+  .env.example
 ```
 
-This command will move the starter code to the **example** directory and create a blank **src/app** directory where you can start developing.
+---
 
-### Other setup steps
+## 2. Setup & Running Instructions
 
-- To set up ESLint for linting, run `npx expo lint`, or follow our guide on ["Using ESLint and Prettier"](https://docs.expo.dev/guides/using-eslint/)
-- If you'd like to set up unit testing, follow our guide on ["Unit Testing with Jest"](https://docs.expo.dev/develop/unit-testing/)
-- Learn more about the TypeScript setup in this template in our guide on ["Using TypeScript"](https://docs.expo.dev/guides/typescript/)
+### A. Start the FastAPI Backend
 
-## Learn more
+```powershell
+cd backend
+python -m pip install -r requirements.txt
+Copy-Item .env.example .env
+python -m uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+```
 
-To learn more about developing your project with Expo, look at the following resources:
+Verify the backend endpoints:
+- `GET http://localhost:8000/` – Basic API status & Phase 1–10 service readiness
+- `GET http://localhost:8000/health` – Health check endpoint
+- `GET http://localhost:8000/docs` – Interactive OpenAPI / Swagger UI
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
+### B. Start the Mobile Application (Expo)
 
-## Join the community
+From the root directory (`f:\Ai -fri`):
 
-Join our community of developers creating universal apps.
+```powershell
+npm install
+npm run typecheck
+npx expo start
+```
 
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+---
+
+## 3. Testing on a Physical Android Phone
+
+1. Install **Expo Go** from the Google Play Store on your Android phone.
+2. Connect your Android phone and your development computer to the **same Wi-Fi network**.
+3. Find your computer's local LAN IPv4 address (`ipconfig` on Windows, e.g., `192.168.1.105`) and set it in `.env`:
+   ```env
+   EXPO_PUBLIC_API_URL=http://192.168.1.105:8000
+   ```
+4. Start the FastAPI server bound to `0.0.0.0`:
+   ```powershell
+   cd backend
+   python -m uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+   ```
+5. Start Expo in the project root:
+   ```powershell
+   npx expo start
+   ```
+6. Open **Expo Go** on your Android phone and scan the QR code displayed in the terminal.
+   *(If your Wi-Fi blocks local peer connections, run `npx expo start --tunnel`.)*
+
+# friend-app
