@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import {
+  KeyboardAvoidingView,
   Modal,
   Pressable,
   ScrollView,
@@ -326,115 +327,120 @@ export default function MemoryManagementScreen() {
         transparent
         onRequestClose={() => setEditorVisible(false)}
       >
-        <View style={styles.modalBackdrop}>
+        <KeyboardAvoidingView style={styles.modalBackdrop} behavior="padding">
           <View style={styles.modalSheet}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>
-                {editingItem ? 'Edit Personal Memory' : 'Approve New Memory'}
-              </Text>
-              <Pressable
-                onPress={() => setEditorVisible(false)}
-                style={styles.closeBtn}
-              >
-                <Feather name="x" size={20} color={Colors.textPrimary} />
-              </Pressable>
-            </View>
+            <ScrollView
+              showsVerticalScrollIndicator={false}
+              keyboardShouldPersistTaps="handled"
+            >
+              <View style={styles.modalHeader}>
+                <Text style={styles.modalTitle}>
+                  {editingItem ? 'Edit Personal Memory' : 'Approve New Memory'}
+                </Text>
+                <Pressable
+                  onPress={() => setEditorVisible(false)}
+                  style={styles.closeBtn}
+                >
+                  <Feather name="x" size={20} color={Colors.textPrimary} />
+                </Pressable>
+              </View>
 
-            <Text style={styles.fieldLabel}>Category</Text>
-            <View style={styles.categoryPickerRow}>
-              {CATEGORIES.map((cat) => {
-                const selected = draftCategory === cat;
-                return (
-                  <Pressable
-                    key={cat}
-                    onPress={() => setDraftCategory(cat)}
-                    style={[
-                      styles.catOption,
-                      selected && styles.catOptionSelected,
-                    ]}
-                  >
-                    <Text
+              <Text style={styles.fieldLabel}>Category</Text>
+              <View style={styles.categoryPickerRow}>
+                {CATEGORIES.map((cat) => {
+                  const selected = draftCategory === cat;
+                  return (
+                    <Pressable
+                      key={cat}
+                      onPress={() => setDraftCategory(cat)}
                       style={[
-                        styles.catOptionText,
-                        selected && styles.catOptionTextSelected,
+                        styles.catOption,
+                        selected && styles.catOptionSelected,
                       ]}
                     >
-                      {cat}
-                    </Text>
-                  </Pressable>
-                );
-              })}
-            </View>
+                      <Text
+                        style={[
+                          styles.catOptionText,
+                          selected && styles.catOptionTextSelected,
+                        ]}
+                      >
+                        {cat}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
 
-            <Text style={styles.fieldLabel}>Memory Title</Text>
-            <TextInput
-              style={styles.textInput}
-              value={draftTitle}
-              onChangeText={setDraftTitle}
-              placeholder="e.g., Favorite Coffee Order"
-              placeholderTextColor={Colors.textMuted}
-            />
-
-            <Text style={styles.fieldLabel}>Saved Detail</Text>
-            <TextInput
-              style={[styles.textInput, styles.textArea]}
-              value={draftContent}
-              onChangeText={setDraftContent}
-              placeholder="Write the exact detail you want Aura to remember..."
-              placeholderTextColor={Colors.textMuted}
-              multiline
-            />
-
-            {/* Mandatory Explicit Consent Checkbox */}
-            <Pressable
-              onPress={() => setExplicitConsentChecked((prev) => !prev)}
-              style={[
-                styles.consentCheckCard,
-                explicitConsentChecked && styles.consentCheckCardActive,
-              ]}
-              accessibilityRole="checkbox"
-              accessibilityState={{ checked: explicitConsentChecked }}
-            >
-              <Feather
-                name={explicitConsentChecked ? 'check-square' : 'square'}
-                size={20}
-                color={
-                  explicitConsentChecked ? Colors.accent : Colors.textSecondary
-                }
+              <Text style={styles.fieldLabel}>Memory Title</Text>
+              <TextInput
+                style={styles.textInput}
+                value={draftTitle}
+                onChangeText={setDraftTitle}
+                placeholder="e.g., Favorite Coffee Order"
+                placeholderTextColor={Colors.textMuted}
               />
-              <Text style={styles.consentCheckLabel}>
-                I explicitly approve saving this personal information in my
-                assistant memory.
-              </Text>
-            </Pressable>
 
-            {formError ? (
-              <Text style={styles.errorText}>{formError}</Text>
-            ) : null}
+              <Text style={styles.fieldLabel}>Saved Detail</Text>
+              <TextInput
+                style={[styles.textInput, styles.textArea]}
+                value={draftContent}
+                onChangeText={setDraftContent}
+                placeholder="Write the exact detail you want Aura to remember..."
+                placeholderTextColor={Colors.textMuted}
+                multiline
+              />
 
-            <View style={styles.modalActionsRow}>
+              {/* Mandatory Explicit Consent Checkbox */}
               <Pressable
-                onPress={() => setEditorVisible(false)}
-                style={styles.modalCancelBtn}
-              >
-                <Text style={styles.modalCancelBtnText}>Cancel</Text>
-              </Pressable>
-
-              <Pressable
-                onPress={handleSaveMemory}
-                style={({ pressed }) => [
-                  styles.modalSaveBtn,
-                  !explicitConsentChecked && styles.modalSaveBtnDisabled,
-                  pressed && styles.pressed,
+                onPress={() => setExplicitConsentChecked((prev) => !prev)}
+                style={[
+                  styles.consentCheckCard,
+                  explicitConsentChecked && styles.consentCheckCardActive,
                 ]}
+                accessibilityRole="checkbox"
+                accessibilityState={{ checked: explicitConsentChecked }}
               >
-                <Text style={styles.modalSaveBtnText}>
-                  {editingItem ? 'Save Approved Changes' : 'Approve & Save'}
+                <Feather
+                  name={explicitConsentChecked ? 'check-square' : 'square'}
+                  size={20}
+                  color={
+                    explicitConsentChecked ? Colors.accent : Colors.textSecondary
+                  }
+                />
+                <Text style={styles.consentCheckLabel}>
+                  I explicitly approve saving this personal information in my
+                  assistant memory.
                 </Text>
               </Pressable>
-            </View>
+
+              {formError ? (
+                <Text style={styles.errorText}>{formError}</Text>
+              ) : null}
+
+              <View style={styles.modalActionsRow}>
+                <Pressable
+                  onPress={() => setEditorVisible(false)}
+                  style={styles.modalCancelBtn}
+                >
+                  <Text style={styles.modalCancelBtnText}>Cancel</Text>
+                </Pressable>
+
+                <Pressable
+                  onPress={handleSaveMemory}
+                  style={({ pressed }) => [
+                    styles.modalSaveBtn,
+                    !explicitConsentChecked && styles.modalSaveBtnDisabled,
+                    pressed && styles.pressed,
+                  ]}
+                >
+                  <Text style={styles.modalSaveBtnText}>
+                    {editingItem ? 'Save Approved Changes' : 'Approve & Save'}
+                  </Text>
+                </Pressable>
+              </View>
+            </ScrollView>
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
     </SafeAreaView>
   );

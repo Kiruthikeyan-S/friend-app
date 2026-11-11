@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import {
+  KeyboardAvoidingView,
   Modal,
   Pressable,
   ScrollView,
@@ -366,7 +367,7 @@ export default function VoiceAssistantScreen() {
         transparent
         onRequestClose={() => setTrainModalVisible(false)}
       >
-        <View style={styles.modalBackdrop}>
+        <KeyboardAvoidingView style={styles.modalBackdrop} behavior="padding">
           <View style={styles.modalSheet}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Train Voice & Personality</Text>
@@ -378,7 +379,10 @@ export default function VoiceAssistantScreen() {
               </Pressable>
             </View>
 
-            <ScrollView showsVerticalScrollIndicator={false}>
+            <ScrollView
+              showsVerticalScrollIndicator={false}
+              keyboardShouldPersistTaps="handled"
+            >
               <Text style={styles.fieldLabel}>
                 1. Choose Agent Voice (5 Voices · Tap to Hear Sample)
               </Text>
@@ -535,7 +539,7 @@ export default function VoiceAssistantScreen() {
               <Text style={styles.saveModalBtnText}>Save Voice Training</Text>
             </Pressable>
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
     </SafeAreaView>
   );

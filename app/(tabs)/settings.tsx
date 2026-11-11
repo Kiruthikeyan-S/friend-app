@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import {
+  KeyboardAvoidingView,
   Modal,
   Pressable,
   ScrollView,
@@ -376,7 +377,7 @@ export default function SettingsScreen() {
         transparent
         onRequestClose={() => setProfileModalVisible(false)}
       >
-        <View style={styles.modalBackdrop}>
+        <KeyboardAvoidingView style={styles.modalBackdrop} behavior="padding">
           <View style={styles.dialogCard}>
             <Text style={styles.dialogTitle}>Edit Profile Display</Text>
             <Text style={styles.fieldLabel}>Full Name</Text>
@@ -409,7 +410,7 @@ export default function SettingsScreen() {
               </Pressable>
             </View>
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
 
       {/* Clear Conversation History Confirmation Modal */}
