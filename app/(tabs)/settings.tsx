@@ -15,6 +15,7 @@ import { Feather } from '@expo/vector-icons';
 import { Colors, Radius, Spacing } from '@/constants/colors';
 import { AppConfig } from '@/constants/config';
 import { AppStore, useAppStore } from '@/services/appStore';
+import { VoiceService } from '@/services/voice';
 
 export default function SettingsScreen() {
   const router = useRouter();
@@ -117,24 +118,39 @@ export default function SettingsScreen() {
         </View>
 
         {/* 2. Voice Settings */}
-        <Text style={styles.sectionHeading}>Voice Settings (Phase 4 TTS Prep)</Text>
+        <Text style={styles.sectionHeading}>
+          Agent Voice Settings (5 Voices · Tap to Switch & Hear)
+        </Text>
         <View style={styles.card}>
-          <Text style={styles.subLabel}>Assistant Voice Persona</Text>
+          <Text style={styles.subLabel}>
+            Choose from 5 distinct AI Agent Voices (tap any voice to hear a live sample):
+          </Text>
           <View style={styles.voicePersonasCol}>
             {AppConfig.voicePersonas.map((persona) => {
               const selected = voiceSettings.selectedVoiceId === persona.id;
               return (
                 <Pressable
                   key={persona.id}
-                  onPress={() =>
-                    AppStore.updateVoiceSettings({ selectedVoiceId: persona.id })
-                  }
+                  onPress={() => {
+                    AppStore.updateVoiceSettings({
+                      selectedVoiceId: persona.id,
+                      voicePitch: persona.pitch,
+                      speechSpeed: persona.defaultRate,
+                    });
+                    VoiceService.speakText(persona.sampleText, {
+                      personaId: persona.id,
+                      language: persona.voiceLocale,
+                      pitch: persona.pitch,
+                      rate: persona.defaultRate,
+                    });
+                    showFeedback(`Switched agent voice to ${persona.name}`);
+                  }}
                   style={[
                     styles.personaOption,
                     selected && styles.personaOptionSelected,
                   ]}
                 >
-                  <View>
+                  <View style={{ flex: 1, marginRight: 10 }}>
                     <Text
                       style={[
                         styles.personaName,
@@ -143,11 +159,13 @@ export default function SettingsScreen() {
                     >
                       {persona.name}
                     </Text>
-                    <Text style={styles.personaDesc}>{persona.description}</Text>
+                    <Text style={styles.personaDesc}>
+                      {persona.badge} · {persona.description}
+                    </Text>
                   </View>
                   <Feather
-                    name={selected ? 'check-circle' : 'circle'}
-                    size={18}
+                    name={selected ? 'volume-2' : 'play-circle'}
+                    size={19}
                     color={selected ? Colors.primary : Colors.textMuted}
                   />
                 </Pressable>

@@ -51,15 +51,32 @@ export default function VoiceAssistantScreen() {
       (v) => v.id === voiceSettings.selectedVoiceId
     ) || AppConfig.voicePersonas[0];
 
+  const handleSelectPersona = (
+    persona: (typeof AppConfig.voicePersonas)[number],
+    playPreview = true
+  ) => {
+    AppStore.updateVoiceSettings({
+      selectedVoiceId: persona.id,
+      voicePitch: persona.pitch,
+      speechSpeed: persona.defaultRate,
+    });
+    if (playPreview) {
+      VoiceService.speakText(persona.sampleText, {
+        personaId: persona.id,
+        language: persona.voiceLocale,
+        pitch: persona.pitch,
+        rate: persona.defaultRate,
+      });
+    }
+  };
+
   const handleTestVoiceSample = () => {
-    VoiceService.speakText(
-      `Hi! I'm ${activePersona.name.split(' ')[0]}. I'm tuned to your preferred voice pitch and speed, and ready to chat continuously with you!`,
-      {
-        language: voiceSettings.languageCode,
-        pitch: voiceSettings.voicePitch,
-        rate: voiceSettings.speechSpeed,
-      }
-    );
+    VoiceService.speakText(activePersona.sampleText, {
+      personaId: activePersona.id,
+      language: voiceSettings.languageCode,
+      pitch: voiceSettings.voicePitch,
+      rate: voiceSettings.speechSpeed,
+    });
   };
 
   const handleSaveVoiceTraining = () => {
@@ -76,7 +93,8 @@ export default function VoiceAssistantScreen() {
         <View>
           <Text style={styles.headerTitle}>Voice Companion</Text>
           <Text style={styles.headerSubtitle}>
-            {activePersona.name.split(' ')[0]} · {voiceSettings.speechSpeed}x ·{' '}
+            {activePersona.shortName} ({activePersona.badge}) ·{' '}
+            {voiceSettings.speechSpeed}x ·{' '}
             {voiceSettings.continuousMode ? 'Continuous Loop ON' : 'Single Turn'}
           </Text>
         </View>
@@ -102,6 +120,65 @@ export default function VoiceAssistantScreen() {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
+        {/* 5 Agent Voices Quick Switcher Strip */}
+        <View style={styles.voiceSelectorCard}>
+          <View style={styles.voiceSelectorHeader}>
+            <Text style={styles.voiceSelectorTitle}>
+              Choose Agent Voice (5 Voices · Tap to Switch & Hear)
+            </Text>
+            <Pressable
+              onPress={handleTestVoiceSample}
+              style={styles.previewMiniBtn}
+            >
+              <Feather name="volume-2" size={12} color={Colors.primary} />
+              <Text style={styles.previewMiniBtnText}>Preview</Text>
+            </Pressable>
+          </View>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.voiceChipsScroll}
+          >
+            {AppConfig.voicePersonas.map((persona) => {
+              const selected = voiceSettings.selectedVoiceId === persona.id;
+              return (
+                <Pressable
+                  key={persona.id}
+                  onPress={() => handleSelectPersona(persona, true)}
+                  style={[
+                    styles.voiceChipCard,
+                    selected && styles.voiceChipCardSelected,
+                  ]}
+                >
+                  <View style={styles.voiceChipTop}>
+                    <Feather
+                      name={selected ? 'volume-2' : 'mic'}
+                      size={13}
+                      color={selected ? Colors.primary : Colors.textSecondary}
+                    />
+                    <Text
+                      style={[
+                        styles.voiceChipName,
+                        selected && styles.voiceChipNameSelected,
+                      ]}
+                    >
+                      {persona.shortName}
+                    </Text>
+                  </View>
+                  <Text
+                    style={[
+                      styles.voiceChipBadge,
+                      selected && styles.voiceChipBadgeSelected,
+                    ]}
+                  >
+                    {persona.badge}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </ScrollView>
+        </View>
+
         {/* Continuous Hands-Free Mode Toggle Card */}
         <View style={styles.continuousBar}>
           <View style={styles.continuousLeft}>
@@ -302,26 +379,22 @@ export default function VoiceAssistantScreen() {
             </View>
 
             <ScrollView showsVerticalScrollIndicator={false}>
-              <Text style={styles.fieldLabel}>1. Choose Voice Persona</Text>
+              <Text style={styles.fieldLabel}>
+                1. Choose Agent Voice (5 Voices · Tap to Hear Sample)
+              </Text>
               <View style={styles.optionsCol}>
                 {AppConfig.voicePersonas.map((p) => {
                   const selected = voiceSettings.selectedVoiceId === p.id;
                   return (
                     <Pressable
                       key={p.id}
-                      onPress={() =>
-                        AppStore.updateVoiceSettings({
-                          selectedVoiceId: p.id,
-                          voicePitch: p.pitch,
-                          speechSpeed: p.defaultRate,
-                        })
-                      }
+                      onPress={() => handleSelectPersona(p, true)}
                       style={[
                         styles.personaRow,
                         selected && styles.personaRowSelected,
                       ]}
                     >
-                      <View>
+                      <View style={styles.personaInfoCol}>
                         <Text
                           style={[
                             styles.personaName,
@@ -330,10 +403,12 @@ export default function VoiceAssistantScreen() {
                         >
                           {p.name}
                         </Text>
-                        <Text style={styles.personaDesc}>{p.description}</Text>
+                        <Text style={styles.personaDesc}>
+                          {p.badge} · {p.description}
+                        </Text>
                       </View>
                       <Feather
-                        name={selected ? 'check-circle' : 'circle'}
+                        name={selected ? 'volume-2' : 'play-circle'}
                         size={18}
                         color={selected ? Colors.primary : Colors.textMuted}
                       />
@@ -509,6 +584,85 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.lg,
     paddingTop: Spacing.md,
     paddingBottom: Spacing.xxxl,
+  },
+  voiceSelectorCard: {
+    backgroundColor: Colors.surface,
+    borderRadius: Radius.lg,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    paddingVertical: 11,
+    paddingHorizontal: Spacing.md,
+    marginBottom: Spacing.md,
+  },
+  voiceSelectorHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 8,
+  },
+  voiceSelectorTitle: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: Colors.textSecondary,
+    textTransform: 'uppercase',
+    letterSpacing: 0.3,
+  },
+  previewMiniBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: Colors.primarySoft,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: Radius.full,
+  },
+  previewMiniBtnText: {
+    fontSize: 11.5,
+    fontWeight: '700',
+    color: Colors.primary,
+  },
+  voiceChipsScroll: {
+    gap: 8,
+    paddingRight: 6,
+  },
+  voiceChipCard: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: Radius.md,
+    backgroundColor: Colors.surfaceSoft,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    minWidth: 108,
+  },
+  voiceChipCardSelected: {
+    backgroundColor: Colors.primarySoft,
+    borderColor: Colors.primary,
+  },
+  voiceChipTop: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  voiceChipName: {
+    fontSize: 13.5,
+    fontWeight: '700',
+    color: Colors.textPrimary,
+  },
+  voiceChipNameSelected: {
+    color: Colors.primary,
+  },
+  voiceChipBadge: {
+    fontSize: 11,
+    color: Colors.textSecondary,
+    marginTop: 2,
+  },
+  voiceChipBadgeSelected: {
+    color: Colors.primary,
+    fontWeight: '600',
+  },
+  personaInfoCol: {
+    flex: 1,
+    marginRight: 10,
   },
   continuousBar: {
     flexDirection: 'row',

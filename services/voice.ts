@@ -8,8 +8,96 @@
 import { AudioModule } from 'expo-audio';
 import * as Speech from 'expo-speech';
 import { Platform } from 'react-native';
+import { AppConfig } from '@/constants/config';
 
 export type MicPermissionStatus = 'undetermined' | 'granted' | 'denied';
+
+let cachedSystemVoices: Speech.Voice[] = [];
+let voicesLoaded = false;
+
+async function ensureSystemVoicesLoaded(): Promise<Speech.Voice[]> {
+  if (voicesLoaded && cachedSystemVoices.length > 0) {
+    return cachedSystemVoices;
+  }
+  try {
+    const voices = await Speech.getAvailableVoicesAsync();
+    if (Array.isArray(voices) && voices.length > 0) {
+      cachedSystemVoices = voices;
+      voicesLoaded = true;
+    }
+  } catch {
+    // Ignore if unavailable on current platform
+  }
+  return cachedSystemVoices;
+}
+
+// Preload device voices in the background
+ensureSystemVoicesLoaded();
+
+/**
+ * Picks a distinct native device voice for the given persona if the OS exposes multiple voices,
+ * while also using the persona's accent locale, pitch, and speech rate.
+ */
+function pickDeviceVoiceForPersona(
+  personaId: string | undefined,
+  preferredLanguage?: string
+): { voiceIdentifier?: string; language: string; pitch: number; rate: number } {
+  const persona =
+    AppConfig.voicePersonas.find((p) => p.id === personaId) ||
+    AppConfig.voicePersonas[0];
+
+  const targetLang =
+    preferredLanguage && preferredLanguage !== 'en-US'
+      ? preferredLanguage
+      : persona.voiceLocale || 'en-US';
+
+  if (cachedSystemVoices.length === 0) {
+    return {
+      language: targetLang,
+      pitch: persona.pitch,
+      rate: persona.defaultRate,
+    };
+  }
+
+  // Filter voices matching the language prefix (e.g. 'en')
+  const langPrefix = targetLang.split('-')[0].toLowerCase();
+  const exactLocaleVoices = cachedSystemVoices.filter(
+    (v) => v.language?.toLowerCase() === targetLang.toLowerCase()
+  );
+  const familyVoices = cachedSystemVoices.filter((v) =>
+    v.language?.toLowerCase().startsWith(langPrefix)
+  );
+
+  const pool =
+    exactLocaleVoices.length > 0
+      ? exactLocaleVoices
+      : familyVoices.length > 0
+      ? familyVoices
+      : cachedSystemVoices;
+
+  // Try to match gender keywords in voice name/identifier if available on Android/iOS
+  const maleKeywords = ['male', 'david', 'mark', 'james', 'daniel', 'rishi', 'arjun', 'iom', 'tpd', 'guy'];
+  const femaleKeywords = ['female', 'zira', 'samantha', 'victoria', 'karen', 'moira', 'tessa', 'veena', 'sfg', 'sfb'];
+
+  const genderFiltered = pool.filter((v) => {
+    const label = `${v.name || ''} ${v.identifier || ''}`.toLowerCase();
+    if (persona.genderHint === 'male') {
+      return maleKeywords.some((k) => label.includes(k));
+    }
+    return femaleKeywords.some((k) => label.includes(k));
+  });
+
+  const finalPool = genderFiltered.length > 0 ? genderFiltered : pool;
+  const chosenVoice =
+    finalPool[persona.voiceIndexOffset % finalPool.length];
+
+  return {
+    voiceIdentifier: chosenVoice?.identifier,
+    language: chosenVoice?.language || targetLang,
+    pitch: persona.pitch,
+    rate: persona.defaultRate,
+  };
+}
 
 export const VoiceService = {
   async getMicrophonePermission(): Promise<MicPermissionStatus> {
@@ -62,11 +150,13 @@ export const VoiceService = {
   },
 
   /**
-   * Speaks text aloud through the device speaker using `expo-speech`.
+   * Speaks text aloud through the device speaker using `expo-speech`
+   * with support for 5 distinct Agent Voice Personas.
    */
   speakText(
     text: string,
     options: {
+      personaId?: string;
       language?: string;
       pitch?: number;
       rate?: number;
@@ -82,10 +172,16 @@ export const VoiceService = {
       return;
     }
 
+    const resolved = pickDeviceVoiceForPersona(
+      options.personaId,
+      options.language
+    );
+
     Speech.speak(cleanText, {
-      language: options.language || 'en-US',
-      pitch: options.pitch ?? 1.05,
-      rate: options.rate ?? 1.0,
+      voice: resolved.voiceIdentifier,
+      language: resolved.language,
+      pitch: options.pitch ?? resolved.pitch,
+      rate: options.rate ?? resolved.rate,
       onDone: options.onDone,
       onStopped: options.onStopped,
       onError: options.onError,

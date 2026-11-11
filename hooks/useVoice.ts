@@ -243,6 +243,7 @@ export function useVoice() {
 
       const latestVoice = AppStore.getState().voiceSettings;
       VoiceService.speakText(res.reply, {
+        personaId: latestVoice.selectedVoiceId,
         language: latestVoice.languageCode,
         pitch: latestVoice.voicePitch,
         rate: latestVoice.speechSpeed,

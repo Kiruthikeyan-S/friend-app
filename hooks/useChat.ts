@@ -52,6 +52,7 @@ export function useChat() {
       const { voiceSettings } = AppStore.getState();
       setPlayingMessageId(messageId);
       VoiceService.speakText(text, {
+        personaId: voiceSettings.selectedVoiceId,
         language: voiceSettings.languageCode,
         pitch: voiceSettings.voicePitch,
         rate: voiceSettings.speechSpeed,
