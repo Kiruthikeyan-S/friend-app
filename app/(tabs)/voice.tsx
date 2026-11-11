@@ -10,23 +10,19 @@ import {
   TextInput,
   View,
 } from 'react-native';
+import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
+import { GlassBackground, IridescentMiniOrb } from '@/components/GlassBackground';
 import { VoiceButton } from '@/components/VoiceButton';
 import { Colors, Radius, Spacing } from '@/constants/colors';
 import { AppConfig } from '@/constants/config';
-import { useVoice, VoiceInteractionState } from '@/hooks/useVoice';
+import { useVoice } from '@/hooks/useVoice';
 import { AppStore } from '@/services/appStore';
 import { VoiceService } from '@/services/voice';
 
-const STATE_PILLS: Array<{ key: VoiceInteractionState; label: string }> = [
-  { key: 'idle', label: 'Ready' },
-  { key: 'listening', label: 'Listening' },
-  { key: 'processing', label: 'Thinking' },
-  { key: 'speaking', label: 'Speaking' },
-];
-
 export default function VoiceAssistantScreen() {
+  const router = useRouter();
   const {
     interactionState,
     recordingSeconds,
@@ -88,57 +84,74 @@ export default function VoiceAssistantScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.safeArea} edges={['top']}>
-      {/* Clean Modern Header */}
-      <View style={styles.header}>
-        <View>
-          <Text style={styles.headerTitle}>Voice Companion</Text>
-          <Text style={styles.headerSubtitle}>
-            {activePersona.shortName} ({activePersona.badge}) ·{' '}
-            {voiceSettings.speechSpeed}x ·{' '}
-            {voiceSettings.continuousMode ? 'Continuous Loop ON' : 'Single Turn'}
-          </Text>
+    <GlassBackground>
+      <SafeAreaView style={styles.safeArea} edges={['top']}>
+        {/* Top Glassmorphic Header (Matching Center Phone Mockup) */}
+        <View style={styles.topHeader}>
+          <Pressable
+            onPress={() => router.push('/(tabs)/chat')}
+            style={({ pressed }) => [
+              styles.circleGlassBtn,
+              pressed && styles.pressed,
+            ]}
+            accessibilityRole="button"
+            accessibilityLabel="Back to Smart Chat"
+          >
+            <Feather
+              name="chevron-left"
+              size={20}
+              color={Colors.textPrimary}
+            />
+          </Pressable>
+
+          <Pressable
+            onPress={handleTestVoiceSample}
+            style={({ pressed }) => [
+              styles.voicePulsePill,
+              pressed && styles.pressed,
+            ]}
+            accessibilityRole="button"
+            accessibilityLabel="Preview active voice persona"
+          >
+            <IridescentMiniOrb size={24} />
+            <Text style={styles.voicePulseText}>
+              Voice Pulse · {activePersona.shortName}
+            </Text>
+          </Pressable>
+
+          <Pressable
+            onPress={() => {
+              setCustomPromptDraft(voiceSettings.customStylePrompt);
+              setTrainModalVisible(true);
+            }}
+            style={({ pressed }) => [
+              styles.circleGlassBtn,
+              pressed && styles.pressed,
+            ]}
+            accessibilityRole="button"
+            accessibilityLabel="Train voice and choose from 5 voices"
+          >
+            <Feather
+              name="more-vertical"
+              size={18}
+              color={Colors.textPrimary}
+            />
+          </Pressable>
         </View>
 
-        <Pressable
-          onPress={() => {
-            setCustomPromptDraft(voiceSettings.customStylePrompt);
-            setTrainModalVisible(true);
-          }}
-          style={({ pressed }) => [
-            styles.trainVoiceBtn,
-            pressed && styles.pressed,
-          ]}
-          accessibilityRole="button"
-          accessibilityLabel="Train voice and personality"
+        <ScrollView
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
         >
-          <Feather name="sliders" size={14} color={Colors.primary} />
-          <Text style={styles.trainVoiceBtnText}>Train Voice</Text>
-        </Pressable>
-      </View>
+          {/* Title: AI Voice Recognition */}
+          <Text style={styles.screenMainTitle}>AI Voice Recognition</Text>
+          <Text style={styles.screenSubStatus}>{statusMessage}</Text>
 
-      <ScrollView
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-      >
-        {/* 5 Agent Voices Quick Switcher Strip */}
-        <View style={styles.voiceSelectorCard}>
-          <View style={styles.voiceSelectorHeader}>
-            <Text style={styles.voiceSelectorTitle}>
-              Choose Agent Voice (5 Voices · Tap to Switch & Hear)
-            </Text>
-            <Pressable
-              onPress={handleTestVoiceSample}
-              style={styles.previewMiniBtn}
-            >
-              <Feather name="volume-2" size={12} color={Colors.primary} />
-              <Text style={styles.previewMiniBtnText}>Preview</Text>
-            </Pressable>
-          </View>
+          {/* 5 Agent Voices Quick Glass Strip */}
           <ScrollView
             horizontal
             showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.voiceChipsScroll}
+            contentContainerStyle={styles.voicesStrip}
           >
             {AppConfig.voicePersonas.map((persona) => {
               const selected = voiceSettings.selectedVoiceId === persona.id;
@@ -147,693 +160,620 @@ export default function VoiceAssistantScreen() {
                   key={persona.id}
                   onPress={() => handleSelectPersona(persona, true)}
                   style={[
-                    styles.voiceChipCard,
-                    selected && styles.voiceChipCardSelected,
+                    styles.voiceGlassPill,
+                    selected && styles.voiceGlassPillSelected,
                   ]}
                 >
-                  <View style={styles.voiceChipTop}>
-                    <Feather
-                      name={selected ? 'volume-2' : 'mic'}
-                      size={13}
-                      color={selected ? Colors.primary : Colors.textSecondary}
-                    />
-                    <Text
-                      style={[
-                        styles.voiceChipName,
-                        selected && styles.voiceChipNameSelected,
-                      ]}
-                    >
-                      {persona.shortName}
-                    </Text>
-                  </View>
+                  <Feather
+                    name={selected ? 'volume-2' : 'mic'}
+                    size={12}
+                    color={selected ? Colors.primary : Colors.textSecondary}
+                  />
                   <Text
                     style={[
-                      styles.voiceChipBadge,
-                      selected && styles.voiceChipBadgeSelected,
+                      styles.voiceGlassPillName,
+                      selected && styles.voiceGlassPillNameSelected,
                     ]}
                   >
-                    {persona.badge}
+                    {persona.shortName}
                   </Text>
                 </Pressable>
               );
             })}
           </ScrollView>
-        </View>
 
-        {/* Continuous Hands-Free Mode Toggle Card */}
-        <View style={styles.continuousBar}>
-          <View style={styles.continuousLeft}>
-            <View style={styles.loopIconBox}>
-              <Feather name="repeat" size={15} color={Colors.accent} />
-            </View>
-            <View style={styles.continuousTextCol}>
-              <Text style={styles.continuousTitle}>
-                Continuous Voice Conversation
+          {/* Live Memory Learned Glass Toast */}
+          {lastMemoryNotice ? (
+            <View style={styles.memoryLearnedPill}>
+              <Feather name="bookmark" size={14} color={Colors.primary} />
+              <Text style={styles.memoryLearnedText} numberOfLines={2}>
+                {lastMemoryNotice}
               </Text>
-              <Text style={styles.continuousSubtitle}>
-                {voiceSettings.continuousMode
-                  ? `Auto-detects silence (0.7s pause) or ${autoSendSeconds}s max & replies immediately`
-                  : 'Tap orb manually to start and finish each turn'}
-              </Text>
-            </View>
-          </View>
-          <Switch
-            value={voiceSettings.continuousMode}
-            onValueChange={(val) =>
-              AppStore.updateVoiceSettings({ continuousMode: val })
-            }
-            trackColor={{ false: Colors.border, true: Colors.accent }}
-          />
-        </View>
-
-        {/* Live Memory Learned Toast */}
-        {lastMemoryNotice ? (
-          <View style={styles.memoryLearnedPill}>
-            <Feather name="bookmark" size={14} color={Colors.accent} />
-            <Text style={styles.memoryLearnedText} numberOfLines={2}>
-              {lastMemoryNotice}
-            </Text>
-            <Pressable
-              onPress={() => AppStore.clearMemoryNotice()}
-              hitSlop={8}
-            >
-              <Feather name="x" size={14} color={Colors.textSecondary} />
-            </Pressable>
-          </View>
-        ) : null}
-
-        {/* State Pills */}
-        <View style={styles.stateRow}>
-          {STATE_PILLS.map((pill) => {
-            const active = interactionState === pill.key;
-            return (
-              <View
-                key={pill.key}
-                style={[styles.statePill, active && styles.statePillActive]}
-              >
-                <Text
-                  style={[
-                    styles.statePillText,
-                    active && styles.statePillTextActive,
-                  ]}
-                >
-                  {pill.label}
-                </Text>
-              </View>
-            );
-          })}
-        </View>
-
-        {/* Main Interactive Voice Orb */}
-        <VoiceButton
-          state={interactionState}
-          recordingSeconds={recordingSeconds}
-          onPress={handlePrimaryMicPress}
-        />
-
-        <Text style={styles.statusMessage}>{statusMessage}</Text>
-
-        {/* Quick Action Buttons when Listening or Speaking */}
-        <View style={styles.controlsRow}>
-          <Pressable
-            onPress={cancelRecording}
-            disabled={interactionState === 'idle'}
-            style={({ pressed }) => [
-              styles.controlButton,
-              styles.cancelButton,
-              interactionState === 'idle' && styles.controlButtonDisabled,
-              pressed && interactionState !== 'idle' && styles.pressed,
-            ]}
-          >
-            <Feather
-              name="pause-circle"
-              size={16}
-              color={
-                interactionState !== 'idle' ? Colors.error : Colors.textMuted
-              }
-            />
-            <Text
-              style={[
-                styles.controlButtonText,
-                {
-                  color:
-                    interactionState !== 'idle'
-                      ? Colors.error
-                      : Colors.textMuted,
-                },
-              ]}
-            >
-              Pause Loop
-            </Text>
-          </Pressable>
-
-          <Pressable
-            onPress={stopSpeaking}
-            disabled={interactionState !== 'speaking'}
-            style={({ pressed }) => [
-              styles.controlButton,
-              styles.stopButton,
-              interactionState !== 'speaking' && styles.controlButtonDisabled,
-              pressed && interactionState === 'speaking' && styles.pressed,
-            ]}
-          >
-            <Feather
-              name="volume-x"
-              size={16}
-              color={
-                interactionState === 'speaking'
-                  ? Colors.primary
-                  : Colors.textMuted
-              }
-            />
-            <Text
-              style={[
-                styles.controlButtonText,
-                {
-                  color:
-                    interactionState === 'speaking'
-                      ? Colors.primary
-                      : Colors.textMuted,
-                },
-              ]}
-            >
-              Stop Speaking
-            </Text>
-          </Pressable>
-        </View>
-
-        {/* Live Transcript & Spoken Response Cards */}
-        <View style={styles.conversationCard}>
-          <View style={styles.turnBlock}>
-            <View style={styles.turnHeader}>
-              <Feather name="mic" size={13} color={Colors.accent} />
-              <Text style={styles.turnLabel}>You Spoke</Text>
-            </View>
-            <Text
-              style={[
-                styles.turnText,
-                !recognizedSpeechPreview && styles.turnPlaceholder,
-              ]}
-            >
-              {recognizedSpeechPreview ||
-                'Tap the blue orb and speak naturally—your words will appear here.'}
-            </Text>
-          </View>
-
-          <View style={styles.turnDivider} />
-
-          <View style={styles.turnBlock}>
-            <View style={styles.turnHeader}>
-              <Feather name="volume-2" size={13} color={Colors.primary} />
-              <Text style={styles.turnLabel}>Aura’s Reply</Text>
-            </View>
-            <Text
-              style={[
-                styles.turnText,
-                !assistantResponsePreview && styles.turnPlaceholder,
-              ]}
-            >
-              {assistantResponsePreview ||
-                'Aura will answer you out loud and automatically remember important details.'}
-            </Text>
-          </View>
-        </View>
-      </ScrollView>
-
-      {/* Train Voice & Personality Modal */}
-      <Modal
-        visible={trainModalVisible}
-        animationType="slide"
-        transparent
-        onRequestClose={() => setTrainModalVisible(false)}
-      >
-        <KeyboardAvoidingView style={styles.modalBackdrop} behavior="padding">
-          <View style={styles.modalSheet}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Train Voice & Personality</Text>
               <Pressable
-                onPress={() => setTrainModalVisible(false)}
-                style={styles.closeBtn}
+                onPress={() => AppStore.clearMemoryNotice()}
+                hitSlop={8}
               >
-                <Feather name="x" size={20} color={Colors.textPrimary} />
+                <Feather name="x" size={14} color={Colors.textSecondary} />
               </Pressable>
             </View>
+          ) : null}
 
-            <ScrollView
-              showsVerticalScrollIndicator={false}
-              keyboardShouldPersistTaps="handled"
+          {/* Centerpiece 3D Iridescent Glass Bubble Orb */}
+          <VoiceButton
+            state={interactionState}
+            recordingSeconds={recordingSeconds}
+            onPress={handlePrimaryMicPress}
+          />
+
+          {/* Two Frosted Glass Square Cards Below the Orb (Matching Mockup) */}
+          <View style={styles.dualGlassCardsRow}>
+            {/* Left Square Glass Card: Voice Clarity Boost / You Spoke */}
+            <Pressable
+              onPress={() =>
+                AppStore.updateVoiceSettings({
+                  continuousMode: !voiceSettings.continuousMode,
+                })
+              }
+              style={({ pressed }) => [
+                styles.glassFeatureSquare,
+                pressed && styles.pressed,
+              ]}
             >
-              <Text style={styles.fieldLabel}>
-                1. Choose Agent Voice (5 Voices · Tap to Hear Sample)
-              </Text>
-              <View style={styles.optionsCol}>
-                {AppConfig.voicePersonas.map((p) => {
-                  const selected = voiceSettings.selectedVoiceId === p.id;
-                  return (
-                    <Pressable
-                      key={p.id}
-                      onPress={() => handleSelectPersona(p, true)}
-                      style={[
-                        styles.personaRow,
-                        selected && styles.personaRowSelected,
-                      ]}
-                    >
-                      <View style={styles.personaInfoCol}>
+              <View style={styles.squareTopIcons}>
+                <View style={styles.squareIconCircle}>
+                  <Feather
+                    name="activity"
+                    size={16}
+                    color={
+                      voiceSettings.continuousMode
+                        ? Colors.primary
+                        : Colors.textPrimary
+                    }
+                  />
+                </View>
+                <View style={styles.squareIconCircle}>
+                  <Feather
+                    name="arrow-up-right"
+                    size={15}
+                    color={Colors.textPrimary}
+                  />
+                </View>
+              </View>
+
+              <View>
+                <Text style={styles.squareCardTitle}>
+                  {recognizedSpeechPreview
+                    ? 'You Spoke'
+                    : 'Voice Clarity\nBoost'}
+                </Text>
+                <Text style={styles.squareCardSub} numberOfLines={3}>
+                  {recognizedSpeechPreview ||
+                    (voiceSettings.continuousMode
+                      ? 'Continuous Auto-Reply ON'
+                      : 'Tap to enable Continuous Loop')}
+                </Text>
+              </View>
+            </Pressable>
+
+            {/* Right Square Glass Card: Instant Speech Capture / Aura's Reply */}
+            <Pressable
+              onPress={() => {
+                setCustomPromptDraft(voiceSettings.customStylePrompt);
+                setTrainModalVisible(true);
+              }}
+              style={({ pressed }) => [
+                styles.glassFeatureSquare,
+                pressed && styles.pressed,
+              ]}
+            >
+              <View style={styles.squareTopIcons}>
+                <View style={styles.squareIconCircle}>
+                  <Feather
+                    name="aperture"
+                    size={16}
+                    color={Colors.accent}
+                  />
+                </View>
+                <View style={styles.squareIconCircle}>
+                  <Feather
+                    name="arrow-up-right"
+                    size={15}
+                    color={Colors.textPrimary}
+                  />
+                </View>
+              </View>
+
+              <View>
+                <Text style={styles.squareCardTitle}>
+                  {assistantResponsePreview
+                    ? "Aura's Reply"
+                    : 'Instant Speech\nCapture'}
+                </Text>
+                <Text style={styles.squareCardSub} numberOfLines={3}>
+                  {assistantResponsePreview ||
+                    `${activePersona.name} · 0.7s instant silence reply`}
+                </Text>
+              </View>
+            </Pressable>
+          </View>
+
+          {/* Bottom 3-Button Floating Glass Control Dock (Matching Mockup: [ AI ] [ 🎙️ ] [ ✕ ]) */}
+          <View style={styles.bottomGlassDock}>
+            <Pressable
+              onPress={() => router.push('/(tabs)/chat')}
+              style={({ pressed }) => [
+                styles.dockSideGlassCircle,
+                pressed && styles.pressed,
+              ]}
+              accessibilityRole="button"
+              accessibilityLabel="Switch to Smart Chat"
+            >
+              <Feather
+                name="message-circle"
+                size={19}
+                color={Colors.textPrimary}
+              />
+            </Pressable>
+
+            <Pressable
+              onPress={handlePrimaryMicPress}
+              style={({ pressed }) => [
+                styles.dockCenterMicOrb,
+                interactionState === 'listening' &&
+                  styles.dockCenterMicOrbActive,
+                pressed && styles.pressed,
+              ]}
+              accessibilityRole="button"
+              accessibilityLabel="Start or finish speaking immediately"
+            >
+              <Feather
+                name={
+                  interactionState === 'listening'
+                    ? 'check'
+                    : interactionState === 'speaking'
+                    ? 'volume-2'
+                    : 'mic'
+                }
+                size={24}
+                color={
+                  interactionState === 'listening'
+                    ? Colors.textInverse
+                    : Colors.textPrimary
+                }
+              />
+            </Pressable>
+
+            <Pressable
+              onPress={
+                interactionState === 'speaking' ? stopSpeaking : cancelRecording
+              }
+              style={({ pressed }) => [
+                styles.dockSideGlassCircle,
+                pressed && styles.pressed,
+              ]}
+              accessibilityRole="button"
+              accessibilityLabel="Cancel recording or stop speaking"
+            >
+              <Feather name="x" size={20} color={Colors.textPrimary} />
+            </Pressable>
+          </View>
+        </ScrollView>
+
+        {/* Train Voice & 5-Persona Selector Modal */}
+        <Modal
+          visible={trainModalVisible}
+          animationType="slide"
+          transparent
+          onRequestClose={() => setTrainModalVisible(false)}
+        >
+          <KeyboardAvoidingView style={styles.modalBackdrop} behavior="padding">
+            <View style={styles.modalSheet}>
+              <View style={styles.modalHeader}>
+                <Text style={styles.modalTitle}>
+                  Train Voice & 5 Agent Personas
+                </Text>
+                <Pressable
+                  onPress={() => setTrainModalVisible(false)}
+                  style={styles.closeBtn}
+                >
+                  <Feather name="x" size={20} color={Colors.textPrimary} />
+                </Pressable>
+              </View>
+
+              <ScrollView
+                showsVerticalScrollIndicator={false}
+                keyboardShouldPersistTaps="handled"
+              >
+                <View style={styles.continuousModalRow}>
+                  <View style={{ flex: 1, marginRight: 10 }}>
+                    <Text style={styles.personaName}>
+                      Continuous Hands-Free Loop
+                    </Text>
+                    <Text style={styles.personaDesc}>
+                      Replies immediately when you pause speaking (0.7s silence)
+                    </Text>
+                  </View>
+                  <Switch
+                    value={voiceSettings.continuousMode}
+                    onValueChange={(val) =>
+                      AppStore.updateVoiceSettings({ continuousMode: val })
+                    }
+                    trackColor={{ false: Colors.borderSubtle, true: Colors.primary }}
+                  />
+                </View>
+
+                <Text style={styles.fieldLabel}>
+                  1. Choose Agent Voice (5 Voices · Tap to Hear Sample)
+                </Text>
+                <View style={styles.optionsCol}>
+                  {AppConfig.voicePersonas.map((p) => {
+                    const selected = voiceSettings.selectedVoiceId === p.id;
+                    return (
+                      <Pressable
+                        key={p.id}
+                        onPress={() => handleSelectPersona(p, true)}
+                        style={[
+                          styles.personaRow,
+                          selected && styles.personaRowSelected,
+                        ]}
+                      >
+                        <View style={styles.personaInfoCol}>
+                          <Text
+                            style={[
+                              styles.personaName,
+                              selected && styles.personaNameSelected,
+                            ]}
+                          >
+                            {p.name}
+                          </Text>
+                          <Text style={styles.personaDesc}>
+                            {p.badge} · {p.description}
+                          </Text>
+                        </View>
+                        <Feather
+                          name={selected ? 'volume-2' : 'play-circle'}
+                          size={18}
+                          color={selected ? Colors.primary : Colors.textMuted}
+                        />
+                      </Pressable>
+                    );
+                  })}
+                </View>
+
+                <Text style={styles.fieldLabel}>2. Voice Pitch (Tone)</Text>
+                <View style={styles.chipsWrap}>
+                  {AppConfig.voicePitchPresets.map((preset) => {
+                    const selected =
+                      Math.abs(voiceSettings.voicePitch - preset.value) < 0.03;
+                    return (
+                      <Pressable
+                        key={preset.label}
+                        onPress={() =>
+                          AppStore.updateVoiceSettings({
+                            voicePitch: preset.value,
+                          })
+                        }
+                        style={[styles.chip, selected && styles.chipSelected]}
+                      >
                         <Text
                           style={[
-                            styles.personaName,
-                            selected && styles.personaNameSelected,
+                            styles.chipText,
+                            selected && styles.chipTextSelected,
                           ]}
                         >
-                          {p.name}
+                          {preset.label}
                         </Text>
-                        <Text style={styles.personaDesc}>
-                          {p.badge} · {p.description}
+                      </Pressable>
+                    );
+                  })}
+                </View>
+
+                <Text style={styles.fieldLabel}>3. Speech Speed</Text>
+                <View style={styles.chipsWrap}>
+                  {AppConfig.speechSpeeds.map((s) => {
+                    const selected =
+                      Math.abs(voiceSettings.speechSpeed - s.value) < 0.03;
+                    return (
+                      <Pressable
+                        key={s.label}
+                        onPress={() =>
+                          AppStore.updateVoiceSettings({ speechSpeed: s.value })
+                        }
+                        style={[styles.chip, selected && styles.chipSelected]}
+                      >
+                        <Text
+                          style={[
+                            styles.chipText,
+                            selected && styles.chipTextSelected,
+                          ]}
+                        >
+                          {s.label}
                         </Text>
-                      </View>
-                      <Feather
-                        name={selected ? 'volume-2' : 'play-circle'}
-                        size={18}
-                        color={selected ? Colors.primary : Colors.textMuted}
-                      />
-                    </Pressable>
-                  );
-                })}
-              </View>
+                      </Pressable>
+                    );
+                  })}
+                </View>
 
-              <Text style={styles.fieldLabel}>2. Voice Pitch (Tone)</Text>
-              <View style={styles.chipsWrap}>
-                {AppConfig.voicePitchPresets.map((preset) => {
-                  const selected =
-                    Math.abs(voiceSettings.voicePitch - preset.value) < 0.03;
-                  return (
-                    <Pressable
-                      key={preset.label}
-                      onPress={() =>
-                        AppStore.updateVoiceSettings({
-                          voicePitch: preset.value,
-                        })
-                      }
-                      style={[
-                        styles.chip,
-                        selected && styles.chipSelected,
-                      ]}
-                    >
-                      <Text
-                        style={[
-                          styles.chipText,
-                          selected && styles.chipTextSelected,
-                        ]}
+                <Text style={styles.fieldLabel}>
+                  4. Max Phrase Window (Auto-Sends Immediately on Silence)
+                </Text>
+                <View style={styles.chipsWrap}>
+                  {[2, 3, 4, 6].map((sec) => {
+                    const selected = autoSendSeconds === sec;
+                    return (
+                      <Pressable
+                        key={sec}
+                        onPress={() => setAutoSendSeconds(sec)}
+                        style={[styles.chip, selected && styles.chipSelected]}
                       >
-                        {preset.label}
-                      </Text>
-                    </Pressable>
-                  );
-                })}
-              </View>
+                        <Text
+                          style={[
+                            styles.chipText,
+                            selected && styles.chipTextSelected,
+                          ]}
+                        >
+                          {sec} sec
+                        </Text>
+                      </Pressable>
+                    );
+                  })}
+                </View>
 
-              <Text style={styles.fieldLabel}>3. Speech Speed</Text>
-              <View style={styles.chipsWrap}>
-                {AppConfig.speechSpeeds.map((s) => {
-                  const selected =
-                    Math.abs(voiceSettings.speechSpeed - s.value) < 0.03;
-                  return (
-                    <Pressable
-                      key={s.label}
-                      onPress={() =>
-                        AppStore.updateVoiceSettings({ speechSpeed: s.value })
-                      }
-                      style={[
-                        styles.chip,
-                        selected && styles.chipSelected,
-                      ]}
-                    >
-                      <Text
-                        style={[
-                          styles.chipText,
-                          selected && styles.chipTextSelected,
-                        ]}
-                      >
-                        {s.label}
-                      </Text>
-                    </Pressable>
-                  );
-                })}
-              </View>
+                <Text style={styles.fieldLabel}>
+                  5. Train How Aura Talks to You (Custom Instructions)
+                </Text>
+                <TextInput
+                  style={styles.promptInput}
+                  value={customPromptDraft}
+                  onChangeText={setCustomPromptDraft}
+                  placeholder="e.g., Talk like my close friend, keep replies short and fun..."
+                  placeholderTextColor={Colors.textMuted}
+                  multiline
+                />
 
-              <Text style={styles.fieldLabel}>
-                4. Max Phrase Window (Auto-Sends Immediately on Silence)
-              </Text>
-              <View style={styles.chipsWrap}>
-                {[2, 3, 4, 6].map((sec) => {
-                  const selected = autoSendSeconds === sec;
-                  return (
-                    <Pressable
-                      key={sec}
-                      onPress={() => setAutoSendSeconds(sec)}
-                      style={[
-                        styles.chip,
-                        selected && styles.chipSelected,
-                      ]}
-                    >
-                      <Text
-                        style={[
-                          styles.chipText,
-                          selected && styles.chipTextSelected,
-                        ]}
-                      >
-                        {sec} sec
-                      </Text>
-                    </Pressable>
-                  );
-                })}
-              </View>
-
-              <Text style={styles.fieldLabel}>
-                5. Train How Aura Talks to You (Custom Instructions)
-              </Text>
-              <TextInput
-                style={styles.promptInput}
-                value={customPromptDraft}
-                onChangeText={setCustomPromptDraft}
-                placeholder="e.g., Talk like my close friend, keep replies short and fun..."
-                placeholderTextColor={Colors.textMuted}
-                multiline
-              />
+                <Pressable
+                  onPress={handleTestVoiceSample}
+                  style={styles.testVoiceBtn}
+                >
+                  <Feather name="volume-2" size={16} color={Colors.primary} />
+                  <Text style={styles.testVoiceBtnText}>
+                    Test Trained Voice Out Loud
+                  </Text>
+                </Pressable>
+              </ScrollView>
 
               <Pressable
-                onPress={handleTestVoiceSample}
-                style={styles.testVoiceBtn}
+                onPress={handleSaveVoiceTraining}
+                style={styles.saveModalBtn}
               >
-                <Feather name="volume-2" size={16} color={Colors.primary} />
-                <Text style={styles.testVoiceBtnText}>
-                  Test Trained Voice Out Loud
-                </Text>
+                <Text style={styles.saveModalBtnText}>Save Voice Training</Text>
               </Pressable>
-            </ScrollView>
-
-            <Pressable
-              onPress={handleSaveVoiceTraining}
-              style={styles.saveModalBtn}
-            >
-              <Text style={styles.saveModalBtnText}>Save Voice Training</Text>
-            </Pressable>
-          </View>
-        </KeyboardAvoidingView>
-      </Modal>
-    </SafeAreaView>
+            </View>
+          </KeyboardAvoidingView>
+        </Modal>
+      </SafeAreaView>
+    </GlassBackground>
   );
 }
 
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: Colors.background,
   },
-  header: {
+  topHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: Spacing.lg,
-    paddingVertical: 12,
-    backgroundColor: Colors.surface,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.border,
+    paddingVertical: 10,
   },
-  headerTitle: {
-    fontSize: 19,
-    fontWeight: '700',
-    color: Colors.textPrimary,
+  circleGlassBtn: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: 'rgba(255, 255, 255, 0.80)',
+    borderWidth: 1.2,
+    borderColor: 'rgba(255, 255, 255, 0.96)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#9D7BB0',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 10,
+    elevation: 2,
   },
-  headerSubtitle: {
-    fontSize: 12,
-    color: Colors.textSecondary,
-    marginTop: 2,
-  },
-  trainVoiceBtn: {
+  voicePulsePill: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
-    backgroundColor: Colors.primarySoft,
-    paddingHorizontal: 13,
+    gap: 8,
+    backgroundColor: 'rgba(255, 255, 255, 0.84)',
+    borderWidth: 1.2,
+    borderColor: 'rgba(255, 255, 255, 0.96)',
+    paddingHorizontal: 14,
     paddingVertical: 8,
     borderRadius: Radius.full,
+    shadowColor: '#9D7BB0',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 10,
+    elevation: 2,
   },
-  trainVoiceBtnText: {
-    fontSize: 13,
+  voicePulseText: {
+    fontSize: 13.5,
     fontWeight: '700',
-    color: Colors.primary,
+    color: Colors.textPrimary,
   },
   scrollContent: {
     paddingHorizontal: Spacing.lg,
-    paddingTop: Spacing.md,
+    paddingTop: 6,
     paddingBottom: Spacing.xxxl,
-  },
-  voiceSelectorCard: {
-    backgroundColor: Colors.surface,
-    borderRadius: Radius.lg,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    paddingVertical: 11,
-    paddingHorizontal: Spacing.md,
-    marginBottom: Spacing.md,
-  },
-  voiceSelectorHeader: {
-    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 8,
   },
-  voiceSelectorTitle: {
-    fontSize: 12,
+  screenMainTitle: {
+    fontSize: 21,
     fontWeight: '700',
+    color: Colors.textPrimary,
+    textAlign: 'center',
+    marginTop: 4,
+  },
+  screenSubStatus: {
+    fontSize: 12.5,
+    fontWeight: '500',
     color: Colors.textSecondary,
-    textTransform: 'uppercase',
-    letterSpacing: 0.3,
+    textAlign: 'center',
+    marginTop: 4,
+    marginBottom: 10,
   },
-  previewMiniBtn: {
+  voicesStrip: {
+    gap: 8,
+    paddingVertical: 4,
+    marginBottom: 4,
+  },
+  voiceGlassPill: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
-    backgroundColor: Colors.primarySoft,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: Radius.full,
-  },
-  previewMiniBtnText: {
-    fontSize: 11.5,
-    fontWeight: '700',
-    color: Colors.primary,
-  },
-  voiceChipsScroll: {
-    gap: 8,
-    paddingRight: 6,
-  },
-  voiceChipCard: {
+    gap: 5,
     paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: Radius.md,
-    backgroundColor: Colors.surfaceSoft,
+    paddingVertical: 7,
+    borderRadius: Radius.full,
+    backgroundColor: 'rgba(255, 255, 255, 0.72)',
     borderWidth: 1,
-    borderColor: Colors.border,
-    minWidth: 108,
+    borderColor: 'rgba(255, 255, 255, 0.95)',
   },
-  voiceChipCardSelected: {
-    backgroundColor: Colors.primarySoft,
+  voiceGlassPillSelected: {
+    backgroundColor: 'rgba(236, 106, 181, 0.18)',
     borderColor: Colors.primary,
   },
-  voiceChipTop: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  voiceChipName: {
-    fontSize: 13.5,
-    fontWeight: '700',
-    color: Colors.textPrimary,
-  },
-  voiceChipNameSelected: {
-    color: Colors.primary,
-  },
-  voiceChipBadge: {
-    fontSize: 11,
-    color: Colors.textSecondary,
-    marginTop: 2,
-  },
-  voiceChipBadgeSelected: {
-    color: Colors.primary,
+  voiceGlassPillName: {
+    fontSize: 12.5,
     fontWeight: '600',
-  },
-  personaInfoCol: {
-    flex: 1,
-    marginRight: 10,
-  },
-  continuousBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: Colors.surface,
-    borderRadius: Radius.lg,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    paddingHorizontal: Spacing.md,
-    paddingVertical: 11,
-    marginBottom: Spacing.md,
-  },
-  continuousLeft: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    marginRight: 8,
-  },
-  loopIconBox: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
-    backgroundColor: Colors.accentSoft,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  continuousTextCol: {
-    flex: 1,
-  },
-  continuousTitle: {
-    fontSize: 13.5,
-    fontWeight: '700',
-    color: Colors.textPrimary,
-  },
-  continuousSubtitle: {
-    fontSize: 11.5,
     color: Colors.textSecondary,
-    marginTop: 1,
+  },
+  voiceGlassPillNameSelected: {
+    color: Colors.primary,
+    fontWeight: '700',
   },
   memoryLearnedPill: {
+    width: '100%',
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    backgroundColor: Colors.accentSoft,
+    backgroundColor: 'rgba(255, 255, 255, 0.86)',
     borderWidth: 1,
-    borderColor: '#B7E4C7',
+    borderColor: Colors.primary,
     borderRadius: Radius.md,
     paddingHorizontal: 12,
-    paddingVertical: 9,
-    marginBottom: Spacing.md,
+    paddingVertical: 8,
+    marginTop: 6,
   },
   memoryLearnedText: {
     flex: 1,
-    fontSize: 12.5,
-    fontWeight: '600',
-    color: Colors.accent,
-  },
-  stateRow: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    gap: Spacing.sm,
-  },
-  statePill: {
-    paddingHorizontal: 13,
-    paddingVertical: 6,
-    borderRadius: Radius.full,
-    backgroundColor: Colors.surface,
-    borderWidth: 1,
-    borderColor: Colors.border,
-  },
-  statePillActive: {
-    backgroundColor: Colors.textPrimary,
-    borderColor: Colors.textPrimary,
-  },
-  statePillText: {
     fontSize: 12,
     fontWeight: '600',
-    color: Colors.textSecondary,
+    color: Colors.primary,
   },
-  statePillTextActive: {
-    color: Colors.textInverse,
-  },
-  statusMessage: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: Colors.textSecondary,
-    textAlign: 'center',
-    marginBottom: Spacing.md,
-  },
-  controlsRow: {
+  dualGlassCardsRow: {
+    width: '100%',
     flexDirection: 'row',
-    gap: Spacing.md,
-    marginBottom: Spacing.lg,
+    gap: 12,
+    marginTop: 8,
+    marginBottom: 20,
   },
-  controlButton: {
+  glassFeatureSquare: {
     flex: 1,
+    minHeight: 148,
+    borderRadius: 26,
+    backgroundColor: 'rgba(255, 255, 255, 0.74)',
+    borderWidth: 1.2,
+    borderColor: 'rgba(255, 255, 255, 0.96)',
+    padding: 15,
+    justifyContent: 'space-between',
+    shadowColor: '#9D7BB0',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.08,
+    shadowRadius: 16,
+    elevation: 2,
+  },
+  squareTopIcons: {
     flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 10,
+  },
+  squareIconCircle: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: 'rgba(255, 255, 255, 0.90)',
+    borderWidth: 1,
+    borderColor: '#FFFFFF',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 7,
-    paddingVertical: 12,
-    borderRadius: Radius.md,
-    borderWidth: 1,
   },
-  cancelButton: {
-    backgroundColor: Colors.surfaceDanger,
-    borderColor: '#FEB2B2',
-  },
-  stopButton: {
-    backgroundColor: Colors.primarySoft,
-    borderColor: '#90CDF4',
-  },
-  controlButtonDisabled: {
-    backgroundColor: Colors.surfaceSoft,
-    borderColor: Colors.border,
-  },
-  controlButtonText: {
-    fontSize: 13,
+  squareCardTitle: {
+    fontSize: 14.5,
+    lineHeight: 19,
     fontWeight: '700',
-  },
-  conversationCard: {
-    backgroundColor: Colors.surface,
-    borderRadius: Radius.xl,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    padding: Spacing.lg,
-  },
-  turnBlock: {
-    gap: 6,
-  },
-  turnHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  turnLabel: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: Colors.textSecondary,
-    textTransform: 'uppercase',
-    letterSpacing: 0.3,
-  },
-  turnText: {
-    fontSize: 15,
-    lineHeight: 22,
     color: Colors.textPrimary,
   },
-  turnPlaceholder: {
-    color: Colors.textMuted,
-    fontSize: 13.5,
+  squareCardSub: {
+    fontSize: 11.5,
+    lineHeight: 16,
+    color: Colors.textSecondary,
+    marginTop: 4,
   },
-  turnDivider: {
-    height: 1,
-    backgroundColor: Colors.divider,
-    marginVertical: Spacing.md,
+  bottomGlassDock: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 20,
+    marginTop: 2,
+  },
+  dockSideGlassCircle: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    backgroundColor: 'rgba(255, 255, 255, 0.82)',
+    borderWidth: 1.2,
+    borderColor: 'rgba(255, 255, 255, 0.96)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#9D7BB0',
+    shadowOffset: { width: 0, height: 5 },
+    shadowOpacity: 0.1,
+    shadowRadius: 12,
+    elevation: 3,
+  },
+  dockCenterMicOrb: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    backgroundColor: 'rgba(244, 218, 248, 0.92)',
+    borderWidth: 2,
+    borderColor: '#FFFFFF',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#D95BA3',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.25,
+    shadowRadius: 18,
+    elevation: 5,
+  },
+  dockCenterMicOrbActive: {
+    backgroundColor: Colors.primary,
+    borderColor: '#FFFFFF',
   },
   modalBackdrop: {
     flex: 1,
-    backgroundColor: 'rgba(26, 29, 32, 0.38)',
+    backgroundColor: 'rgba(30, 27, 36, 0.35)',
     justifyContent: 'flex-end',
   },
   modalSheet: {
-    backgroundColor: Colors.surface,
+    backgroundColor: Colors.background,
     borderTopLeftRadius: Radius.xl,
     borderTopRightRadius: Radius.xl,
+    borderWidth: 1.5,
+    borderColor: '#FFFFFF',
     padding: Spacing.xl,
     maxHeight: '86%',
   },
@@ -844,12 +784,23 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.sm,
   },
   modalTitle: {
-    fontSize: 19,
+    fontSize: 18,
     fontWeight: '700',
     color: Colors.textPrimary,
   },
   closeBtn: {
     padding: 4,
+  },
+  continuousModalRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: 'rgba(255, 255, 255, 0.84)',
+    borderRadius: Radius.md,
+    borderWidth: 1,
+    borderColor: '#FFFFFF',
+    padding: 12,
+    marginBottom: 4,
   },
   fieldLabel: {
     fontSize: 13,
@@ -867,13 +818,17 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     padding: 12,
     borderRadius: Radius.md,
-    backgroundColor: Colors.surfaceSoft,
+    backgroundColor: 'rgba(255, 255, 255, 0.82)',
     borderWidth: 1,
-    borderColor: Colors.border,
+    borderColor: '#FFFFFF',
   },
   personaRowSelected: {
     backgroundColor: Colors.primarySoft,
     borderColor: Colors.primary,
+  },
+  personaInfoCol: {
+    flex: 1,
+    marginRight: 10,
   },
   personaName: {
     fontSize: 14,
@@ -897,9 +852,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 13,
     paddingVertical: 8,
     borderRadius: Radius.full,
-    backgroundColor: Colors.surfaceSoft,
+    backgroundColor: 'rgba(255, 255, 255, 0.82)',
     borderWidth: 1,
-    borderColor: Colors.border,
+    borderColor: '#FFFFFF',
   },
   chipSelected: {
     backgroundColor: Colors.primary,
@@ -914,9 +869,9 @@ const styles = StyleSheet.create({
     color: Colors.textInverse,
   },
   promptInput: {
-    backgroundColor: Colors.surfaceSoft,
+    backgroundColor: 'rgba(255, 255, 255, 0.86)',
     borderWidth: 1,
-    borderColor: Colors.border,
+    borderColor: '#FFFFFF',
     borderRadius: Radius.md,
     padding: 12,
     minHeight: 74,
@@ -931,7 +886,7 @@ const styles = StyleSheet.create({
     gap: 8,
     backgroundColor: Colors.primarySoft,
     paddingVertical: 12,
-    borderRadius: Radius.md,
+    borderRadius: Radius.full,
     marginTop: Spacing.md,
   },
   testVoiceBtnText: {
@@ -942,7 +897,7 @@ const styles = StyleSheet.create({
   saveModalBtn: {
     backgroundColor: Colors.primary,
     paddingVertical: 14,
-    borderRadius: Radius.md,
+    borderRadius: Radius.full,
     alignItems: 'center',
     marginTop: Spacing.md,
   },
@@ -952,6 +907,6 @@ const styles = StyleSheet.create({
     color: Colors.textInverse,
   },
   pressed: {
-    opacity: 0.84,
+    opacity: 0.82,
   },
 });

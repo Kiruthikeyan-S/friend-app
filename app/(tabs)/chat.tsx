@@ -16,6 +16,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import { ChatBubble } from '@/components/ChatBubble';
 import { ChatInput } from '@/components/ChatInput';
+import { GlassBackground } from '@/components/GlassBackground';
 import { LoadingIndicator } from '@/components/LoadingIndicator';
 import { Colors, Radius, Spacing } from '@/constants/colors';
 import { useChat } from '@/hooks/useChat';
@@ -23,8 +24,8 @@ import { AppStore } from '@/services/appStore';
 import { ChatMessage } from '@/types/chat';
 
 const QUICK_PROMPTS = [
-  'Hey Aura, let’s plan my day',
-  'Tell me something interesting in 2 sentences',
+  'Hey, can you recognize my voice?',
+  'Plan my day in 3 simple steps',
   'My favorite drink is iced coffee—remember that!',
 ];
 
@@ -65,295 +66,324 @@ export default function ChatScreen() {
   }, []);
 
   return (
-    <SafeAreaView style={styles.safeArea} edges={['top']}>
-      <KeyboardAvoidingView
-        style={styles.flex}
-        behavior="padding"
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 8 : 20}
-      >
-        {/* Sleek Modern Header */}
-        <View style={styles.header}>
-          <Pressable
-            onPress={() => setHistoryModalVisible(true)}
-            style={({ pressed }) => [
-              styles.headerPillBtn,
-              pressed && styles.pressed,
-            ]}
-            accessibilityRole="button"
-            accessibilityLabel="Open conversation history"
-          >
-            <Feather name="clock" size={16} color={Colors.textPrimary} />
-            <Text style={styles.headerPillText}>Chats</Text>
-          </Pressable>
-
-          <View style={styles.headerCenter}>
-            <View style={styles.avatarDotRow}>
-              <Text style={styles.headerTitle}>Aura</Text>
-              <View
-                style={[
-                  styles.statusDot,
-                  {
-                    backgroundColor:
-                      backendOnline === false ? Colors.warning : Colors.success,
-                  },
-                ]}
-              />
-            </View>
-            <Text style={styles.headerSubtitle}>
-              {chatMode === 'preview'
-                ? 'Viewing Example Preview'
-                : 'Your AI Voice Friend'}
-            </Text>
-          </View>
-
-          <Pressable
-            onPress={startNewConversation}
-            style={({ pressed }) => [
-              styles.newChatBtn,
-              pressed && styles.pressed,
-            ]}
-            accessibilityRole="button"
-            accessibilityLabel="Start new conversation"
-          >
-            <Feather name="plus" size={16} color={Colors.primary} />
-            <Text style={styles.newChatBtnText}>New</Text>
-          </Pressable>
-        </View>
-
-        {/* Memory Learned Toast / Notification Banner */}
-        {lastMemoryNotice ? (
-          <View style={styles.memoryToast}>
-            <View style={styles.memoryToastLeft}>
-              <Feather name="bookmark" size={14} color={Colors.accent} />
-              <Text style={styles.memoryToastText} numberOfLines={2}>
-                {lastMemoryNotice}
-              </Text>
-            </View>
-            <Pressable
-              onPress={() => AppStore.clearMemoryNotice()}
-              hitSlop={8}
-            >
-              <Feather name="x" size={15} color={Colors.textSecondary} />
-            </Pressable>
-          </View>
-        ) : null}
-
-        {/* 1-Tap Consent Approval Banner if Explicit Confirmation is Enabled */}
-        {pendingMemoryCandidates.length > 0 ? (
-          <View style={styles.candidateBanner}>
-            <View style={styles.candidateTextCol}>
-              <Text style={styles.candidateTitle}>
-                Save to Memory? ({pendingMemoryCandidates[0].category})
-              </Text>
-              <Text style={styles.candidateContent}>
-                {pendingMemoryCandidates[0].title}:{' '}
-                {pendingMemoryCandidates[0].content}
-              </Text>
-            </View>
-            <View style={styles.candidateActions}>
-              <Pressable
-                onPress={() =>
-                  AppStore.approvePendingCandidate(
-                    pendingMemoryCandidates[0].id
-                  )
-                }
-                style={styles.approveChip}
-              >
-                <Text style={styles.approveChipText}>Approve</Text>
-              </Pressable>
-              <Pressable
-                onPress={() =>
-                  AppStore.dismissPendingCandidate(
-                    pendingMemoryCandidates[0].id
-                  )
-                }
-                style={styles.dismissChip}
-              >
-                <Feather name="x" size={14} color={Colors.textSecondary} />
-              </Pressable>
-            </View>
-          </View>
-        ) : null}
-
-        {/* Preview Mode Banner (Only shown when viewing read-only example chats) */}
-        {chatMode === 'preview' ? (
-          <View style={styles.previewBanner}>
-            <Text style={styles.previewBannerText}>
-              Example Preview ({activeSession?.title})
-            </Text>
-            <Pressable
-              onPress={() => switchMode('live')}
-              style={styles.returnLiveChip}
-            >
-              <Text style={styles.returnLiveChipText}>Back to Live Chat</Text>
-            </Pressable>
-          </View>
-        ) : null}
-
-        {/* Chat Message List */}
-        <FlatList
-          ref={flatListRef}
-          data={messages}
-          keyExtractor={(item) => item.id}
-          contentContainerStyle={styles.listContent}
-          showsVerticalScrollIndicator={false}
-          keyboardShouldPersistTaps="handled"
-          onContentSizeChange={() =>
-            flatListRef.current?.scrollToEnd({ animated: true })
-          }
-          onLayout={() =>
-            flatListRef.current?.scrollToEnd({ animated: true })
-          }
-          ListHeaderComponent={
-            chatMode === 'live' && messages.length <= 1 ? (
-              <View style={styles.starterContainer}>
-                <Text style={styles.starterHeading}>Quick ideas to try:</Text>
-                <ScrollView
-                  horizontal
-                  showsHorizontalScrollIndicator={false}
-                  contentContainerStyle={styles.starterRow}
-                >
-                  {QUICK_PROMPTS.map((prompt) => (
-                    <Pressable
-                      key={prompt}
-                      onPress={() => sendMessage(prompt)}
-                      style={({ pressed }) => [
-                        styles.starterChip,
-                        pressed && styles.pressed,
-                      ]}
-                    >
-                      <Text style={styles.starterChipText}>{prompt}</Text>
-                    </Pressable>
-                  ))}
-                </ScrollView>
-              </View>
-            ) : undefined
-          }
-          renderItem={({ item }) => (
-            <ChatBubble
-              message={item}
-              isPlaying={playingMessageId === item.id}
-              onTogglePlayback={toggleVoicePlayback}
-            />
-          )}
-          ListFooterComponent={isTyping ? <LoadingIndicator /> : undefined}
-        />
-
-        {/* Chat Input Bar */}
-        <ChatInput
-          value={inputText}
-          onChangeText={setInputText}
-          onSend={() => sendMessage()}
-          onPressMicrophone={() => router.push('/(tabs)/voice')}
-          disabled={isTyping}
-        />
-
-        {/* Conversation History Modal */}
-        <Modal
-          visible={historyModalVisible}
-          animationType="slide"
-          transparent
-          onRequestClose={() => setHistoryModalVisible(false)}
+    <GlassBackground>
+      <SafeAreaView style={styles.safeArea} edges={['top']}>
+        <KeyboardAvoidingView
+          style={styles.flex}
+          behavior="padding"
+          keyboardVerticalOffset={Platform.OS === 'ios' ? 8 : 20}
         >
-          <View style={styles.modalBackdrop}>
-            <View style={styles.modalSheet}>
-              <View style={styles.modalHeader}>
-                <Text style={styles.modalTitle}>Conversations</Text>
+          {/* Glassmorphic Header (Matching Right Phone "Smart Chat" Mockup) */}
+          <View style={styles.header}>
+            <Pressable
+              onPress={() => router.push('/')}
+              style={({ pressed }) => [
+                styles.circleGlassBtn,
+                pressed && styles.pressed,
+              ]}
+              accessibilityRole="button"
+              accessibilityLabel="Open Smart Hub Dashboard"
+            >
+              <Feather
+                name="chevron-left"
+                size={20}
+                color={Colors.textPrimary}
+              />
+            </Pressable>
+
+            <View style={styles.headerCenter}>
+              <View style={styles.titleRow}>
+                <Text style={styles.headerTitle}>Smart Chat</Text>
+                <View
+                  style={[
+                    styles.statusDot,
+                    {
+                      backgroundColor:
+                        backendOnline === false
+                          ? Colors.warning
+                          : Colors.success,
+                    },
+                  ]}
+                />
+              </View>
+              <Text style={styles.headerSubtitle}>
+                {chatMode === 'preview'
+                  ? 'Viewing Example Preview'
+                  : 'Aura AI · Instant Voice & Text'}
+              </Text>
+            </View>
+
+            <Pressable
+              onPress={() => setHistoryModalVisible(true)}
+              style={({ pressed }) => [
+                styles.circleGlassBtn,
+                pressed && styles.pressed,
+              ]}
+              accessibilityRole="button"
+              accessibilityLabel="Open chat history and new chat menu"
+            >
+              <Feather
+                name="more-vertical"
+                size={18}
+                color={Colors.textPrimary}
+              />
+            </Pressable>
+          </View>
+
+          {/* Memory Learned Glass Toast */}
+          {lastMemoryNotice ? (
+            <View style={styles.memoryToast}>
+              <View style={styles.memoryToastLeft}>
+                <Feather name="bookmark" size={14} color={Colors.primary} />
+                <Text style={styles.memoryToastText} numberOfLines={2}>
+                  {lastMemoryNotice}
+                </Text>
+              </View>
+              <Pressable
+                onPress={() => AppStore.clearMemoryNotice()}
+                hitSlop={8}
+              >
+                <Feather name="x" size={15} color={Colors.textSecondary} />
+              </Pressable>
+            </View>
+          ) : null}
+
+          {/* 1-Tap Consent Approval Glass Banner */}
+          {pendingMemoryCandidates.length > 0 ? (
+            <View style={styles.candidateBanner}>
+              <View style={styles.candidateTextCol}>
+                <Text style={styles.candidateTitle}>
+                  Save to Memory? ({pendingMemoryCandidates[0].category})
+                </Text>
+                <Text style={styles.candidateContent}>
+                  {pendingMemoryCandidates[0].title}:{' '}
+                  {pendingMemoryCandidates[0].content}
+                </Text>
+              </View>
+              <View style={styles.candidateActions}>
                 <Pressable
-                  onPress={() => setHistoryModalVisible(false)}
-                  style={styles.closeBtn}
+                  onPress={() =>
+                    AppStore.approvePendingCandidate(
+                      pendingMemoryCandidates[0].id
+                    )
+                  }
+                  style={styles.approveChip}
                 >
-                  <Feather name="x" size={20} color={Colors.textPrimary} />
+                  <Text style={styles.approveChipText}>Approve</Text>
+                </Pressable>
+                <Pressable
+                  onPress={() =>
+                    AppStore.dismissPendingCandidate(
+                      pendingMemoryCandidates[0].id
+                    )
+                  }
+                  style={styles.dismissChip}
+                >
+                  <Feather name="x" size={14} color={Colors.textSecondary} />
                 </Pressable>
               </View>
+            </View>
+          ) : null}
 
-              <ScrollView showsVerticalScrollIndicator={false}>
-                <Text style={styles.sectionLabel}>Your Live Conversations</Text>
-                {liveSessions.map((session) => {
-                  const isCurrent =
-                    chatMode === 'live' && session.id === activeSession?.id;
-                  return (
-                    <Pressable
-                      key={session.id}
-                      onPress={() => {
-                        selectConversation(session.id, false);
-                        setHistoryModalVisible(false);
-                      }}
-                      style={[
-                        styles.sessionCard,
-                        isCurrent && styles.sessionCardActive,
-                      ]}
-                    >
-                      <View style={styles.sessionTopRow}>
-                        <Text style={styles.sessionTitle}>{session.title}</Text>
-                        <Text style={styles.sessionMeta}>
-                          {session.messageCount} msg
-                        </Text>
-                      </View>
-                      <Text style={styles.sessionPreview} numberOfLines={1}>
-                        {session.previewText}
-                      </Text>
-                    </Pressable>
-                  );
-                })}
-
-                <Text style={[styles.sectionLabel, { marginTop: Spacing.lg }]}>
-                  UI Preview Examples (Separated Demo Data)
-                </Text>
-                {previewSessions.map((session) => {
-                  const isCurrent =
-                    chatMode === 'preview' && session.id === activeSession?.id;
-                  return (
-                    <Pressable
-                      key={session.id}
-                      onPress={() => {
-                        selectConversation(session.id, true);
-                        setHistoryModalVisible(false);
-                      }}
-                      style={[
-                        styles.sessionCard,
-                        isCurrent && styles.sessionCardActive,
-                      ]}
-                    >
-                      <View style={styles.sessionTopRow}>
-                        <Text style={styles.sessionTitle}>{session.title}</Text>
-                        <Text style={styles.previewBadge}>Preview</Text>
-                      </View>
-                      <Text style={styles.sessionPreview} numberOfLines={1}>
-                        {session.previewText}
-                      </Text>
-                    </Pressable>
-                  );
-                })}
-              </ScrollView>
-
+          {/* Preview Mode Banner */}
+          {chatMode === 'preview' ? (
+            <View style={styles.previewBanner}>
+              <Text style={styles.previewBannerText}>
+                Example Preview ({activeSession?.title})
+              </Text>
               <Pressable
-                onPress={() => {
-                  startNewConversation();
-                  setHistoryModalVisible(false);
-                }}
-                style={({ pressed }) => [
-                  styles.modalPrimaryBtn,
-                  pressed && styles.pressed,
-                ]}
+                onPress={() => switchMode('live')}
+                style={styles.returnLiveChip}
               >
-                <Feather name="plus" size={18} color={Colors.textInverse} />
-                <Text style={styles.modalPrimaryBtnText}>
-                  New Live Conversation
-                </Text>
+                <Text style={styles.returnLiveChipText}>Back to Live Chat</Text>
               </Pressable>
             </View>
-          </View>
-        </Modal>
-      </KeyboardAvoidingView>
-    </SafeAreaView>
+          ) : null}
+
+          {/* Chat Message List */}
+          <FlatList
+            ref={flatListRef}
+            data={messages}
+            keyExtractor={(item) => item.id}
+            contentContainerStyle={styles.listContent}
+            showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
+            onContentSizeChange={() =>
+              flatListRef.current?.scrollToEnd({ animated: true })
+            }
+            onLayout={() =>
+              flatListRef.current?.scrollToEnd({ animated: true })
+            }
+            ListHeaderComponent={
+              chatMode === 'live' && messages.length <= 1 ? (
+                <View style={styles.starterContainer}>
+                  <View style={styles.starterTopRow}>
+                    <Text style={styles.starterHeading}>
+                      Ask Me Anything You Need:
+                    </Text>
+                    <Pressable
+                      onPress={startNewConversation}
+                      style={styles.newMiniPill}
+                    >
+                      <Feather name="plus" size={12} color={Colors.primary} />
+                      <Text style={styles.newMiniPillText}>Fresh Chat</Text>
+                    </Pressable>
+                  </View>
+                  <ScrollView
+                    horizontal
+                    showsHorizontalScrollIndicator={false}
+                    contentContainerStyle={styles.starterRow}
+                  >
+                    {QUICK_PROMPTS.map((prompt) => (
+                      <Pressable
+                        key={prompt}
+                        onPress={() => sendMessage(prompt)}
+                        style={({ pressed }) => [
+                          styles.starterChip,
+                          pressed && styles.pressed,
+                        ]}
+                      >
+                        <Text style={styles.starterChipText}>{prompt}</Text>
+                      </Pressable>
+                    ))}
+                  </ScrollView>
+                </View>
+              ) : undefined
+            }
+            renderItem={({ item }) => (
+              <ChatBubble
+                message={item}
+                isPlaying={playingMessageId === item.id}
+                onTogglePlayback={toggleVoicePlayback}
+              />
+            )}
+            ListFooterComponent={isTyping ? <LoadingIndicator /> : undefined}
+          />
+
+          {/* Floating Glass Chat Input Bar */}
+          <ChatInput
+            value={inputText}
+            onChangeText={setInputText}
+            onSend={() => sendMessage()}
+            onPressMicrophone={() => router.push('/(tabs)/voice')}
+            disabled={isTyping}
+          />
+
+          {/* Conversation History Glass Modal */}
+          <Modal
+            visible={historyModalVisible}
+            animationType="slide"
+            transparent
+            onRequestClose={() => setHistoryModalVisible(false)}
+          >
+            <View style={styles.modalBackdrop}>
+              <View style={styles.modalSheet}>
+                <View style={styles.modalHeader}>
+                  <Text style={styles.modalTitle}>Chat History</Text>
+                  <Pressable
+                    onPress={() => setHistoryModalVisible(false)}
+                    style={styles.closeBtn}
+                  >
+                    <Feather name="x" size={20} color={Colors.textPrimary} />
+                  </Pressable>
+                </View>
+
+                <ScrollView showsVerticalScrollIndicator={false}>
+                  <Text style={styles.sectionLabel}>
+                    Your Live Conversations
+                  </Text>
+                  {liveSessions.map((session) => {
+                    const isCurrent =
+                      chatMode === 'live' && session.id === activeSession?.id;
+                    return (
+                      <Pressable
+                        key={session.id}
+                        onPress={() => {
+                          selectConversation(session.id, false);
+                          setHistoryModalVisible(false);
+                        }}
+                        style={[
+                          styles.sessionCard,
+                          isCurrent && styles.sessionCardActive,
+                        ]}
+                      >
+                        <View style={styles.sessionTopRow}>
+                          <Text style={styles.sessionTitle}>
+                            {session.title}
+                          </Text>
+                          <Text style={styles.sessionMeta}>
+                            {session.messageCount} msg
+                          </Text>
+                        </View>
+                        <Text style={styles.sessionPreview} numberOfLines={1}>
+                          {session.previewText}
+                        </Text>
+                      </Pressable>
+                    );
+                  })}
+
+                  <Text
+                    style={[styles.sectionLabel, { marginTop: Spacing.lg }]}
+                  >
+                    UI Preview Examples (Separated Demo Data)
+                  </Text>
+                  {previewSessions.map((session) => {
+                    const isCurrent =
+                      chatMode === 'preview' &&
+                      session.id === activeSession?.id;
+                    return (
+                      <Pressable
+                        key={session.id}
+                        onPress={() => {
+                          selectConversation(session.id, true);
+                          setHistoryModalVisible(false);
+                        }}
+                        style={[
+                          styles.sessionCard,
+                          isCurrent && styles.sessionCardActive,
+                        ]}
+                      >
+                        <View style={styles.sessionTopRow}>
+                          <Text style={styles.sessionTitle}>
+                            {session.title}
+                          </Text>
+                          <Text style={styles.previewBadge}>Preview</Text>
+                        </View>
+                        <Text style={styles.sessionPreview} numberOfLines={1}>
+                          {session.previewText}
+                        </Text>
+                      </Pressable>
+                    );
+                  })}
+                </ScrollView>
+
+                <Pressable
+                  onPress={() => {
+                    startNewConversation();
+                    setHistoryModalVisible(false);
+                  }}
+                  style={({ pressed }) => [
+                    styles.modalPrimaryBtn,
+                    pressed && styles.pressed,
+                  ]}
+                >
+                  <Feather name="plus" size={18} color={Colors.textInverse} />
+                  <Text style={styles.modalPrimaryBtnText}>
+                    New Smart Chat Conversation
+                  </Text>
+                </Pressable>
+              </View>
+            </View>
+          </Modal>
+        </KeyboardAvoidingView>
+      </SafeAreaView>
+    </GlassBackground>
   );
 }
 
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: Colors.background,
   },
   flex: {
     flex: 1,
@@ -363,35 +393,33 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: Spacing.lg,
-    paddingVertical: 12,
-    backgroundColor: Colors.surface,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.border,
+    paddingVertical: 10,
   },
-  headerPillBtn: {
-    flexDirection: 'row',
+  circleGlassBtn: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: 'rgba(255, 255, 255, 0.80)',
+    borderWidth: 1.2,
+    borderColor: 'rgba(255, 255, 255, 0.96)',
     alignItems: 'center',
-    gap: 6,
-    backgroundColor: Colors.surfaceSoft,
-    paddingHorizontal: 13,
-    paddingVertical: 8,
-    borderRadius: Radius.full,
-  },
-  headerPillText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: Colors.textPrimary,
+    justifyContent: 'center',
+    shadowColor: '#9D7BB0',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 10,
+    elevation: 2,
   },
   headerCenter: {
     alignItems: 'center',
   },
-  avatarDotRow: {
+  titleRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
   },
   headerTitle: {
-    fontSize: 18,
+    fontSize: 17.5,
     fontWeight: '700',
     color: Colors.textPrimary,
   },
@@ -401,36 +429,22 @@ const styles = StyleSheet.create({
     borderRadius: 4,
   },
   headerSubtitle: {
-    fontSize: 11.5,
+    fontSize: 11,
     color: Colors.textSecondary,
     marginTop: 1,
-  },
-  newChatBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: Colors.primarySoft,
-    paddingHorizontal: 13,
-    paddingVertical: 8,
-    borderRadius: Radius.full,
-  },
-  newChatBtnText: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: Colors.primary,
   },
   memoryToast: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: Colors.accentSoft,
+    backgroundColor: 'rgba(255, 255, 255, 0.86)',
     marginHorizontal: Spacing.lg,
-    marginTop: Spacing.sm,
+    marginTop: 4,
     paddingHorizontal: Spacing.md,
     paddingVertical: 9,
     borderRadius: Radius.md,
-    borderWidth: 1,
-    borderColor: '#B7E4C7',
+    borderWidth: 1.2,
+    borderColor: 'rgba(236, 106, 181, 0.45)',
     gap: 8,
   },
   memoryToastLeft: {
@@ -443,19 +457,19 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 12.5,
     fontWeight: '600',
-    color: Colors.accent,
+    color: Colors.primary,
   },
   candidateBanner: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: Colors.primarySoft,
+    backgroundColor: 'rgba(255, 255, 255, 0.88)',
     marginHorizontal: Spacing.lg,
-    marginTop: Spacing.sm,
+    marginTop: 6,
     padding: Spacing.md,
     borderRadius: Radius.md,
-    borderWidth: 1,
-    borderColor: '#90CDF4',
+    borderWidth: 1.2,
+    borderColor: Colors.primary,
     gap: Spacing.sm,
   },
   candidateTextCol: {
@@ -496,7 +510,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     backgroundColor: Colors.surfaceWarning,
     marginHorizontal: Spacing.lg,
-    marginTop: Spacing.sm,
+    marginTop: 6,
     paddingHorizontal: Spacing.md,
     paddingVertical: 8,
     borderRadius: Radius.md,
@@ -509,7 +523,7 @@ const styles = StyleSheet.create({
     color: Colors.warning,
   },
   returnLiveChip: {
-    backgroundColor: Colors.surface,
+    backgroundColor: '#FFFFFF',
     paddingHorizontal: 10,
     paddingVertical: 5,
     borderRadius: Radius.full,
@@ -521,43 +535,66 @@ const styles = StyleSheet.create({
   },
   listContent: {
     paddingHorizontal: Spacing.lg,
-    paddingTop: Spacing.md,
+    paddingTop: Spacing.sm,
     paddingBottom: Spacing.xl,
   },
   starterContainer: {
     marginBottom: Spacing.sm,
   },
+  starterTopRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 8,
+  },
   starterHeading: {
     fontSize: 12,
-    fontWeight: '600',
-    color: Colors.textMuted,
-    marginBottom: 8,
+    fontWeight: '700',
+    color: Colors.textSecondary,
+  },
+  newMiniPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: 'rgba(255, 255, 255, 0.80)',
+    borderWidth: 1,
+    borderColor: '#FFFFFF',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: Radius.full,
+  },
+  newMiniPillText: {
+    fontSize: 11.5,
+    fontWeight: '700',
+    color: Colors.primary,
   },
   starterRow: {
     gap: 8,
   },
   starterChip: {
-    backgroundColor: Colors.surface,
-    borderWidth: 1,
-    borderColor: Colors.border,
+    backgroundColor: 'rgba(255, 255, 255, 0.80)',
+    borderWidth: 1.2,
+    borderColor: 'rgba(255, 255, 255, 0.96)',
     paddingHorizontal: 14,
     paddingVertical: 9,
     borderRadius: Radius.full,
   },
   starterChipText: {
     fontSize: 13,
-    fontWeight: '500',
+    fontWeight: '600',
     color: Colors.textPrimary,
   },
   modalBackdrop: {
     flex: 1,
-    backgroundColor: 'rgba(26, 29, 32, 0.35)',
+    backgroundColor: 'rgba(30, 27, 36, 0.32)',
     justifyContent: 'flex-end',
   },
   modalSheet: {
     backgroundColor: Colors.background,
     borderTopLeftRadius: Radius.xl,
     borderTopRightRadius: Radius.xl,
+    borderWidth: 1.5,
+    borderColor: '#FFFFFF',
     padding: Spacing.xl,
     maxHeight: '80%',
   },
@@ -584,10 +621,10 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.sm,
   },
   sessionCard: {
-    backgroundColor: Colors.surface,
+    backgroundColor: 'rgba(255, 255, 255, 0.82)',
     borderRadius: Radius.md,
-    borderWidth: 1,
-    borderColor: Colors.border,
+    borderWidth: 1.2,
+    borderColor: '#FFFFFF',
     padding: Spacing.md,
     marginBottom: Spacing.sm,
   },
@@ -627,8 +664,8 @@ const styles = StyleSheet.create({
   modalPrimaryBtn: {
     marginTop: Spacing.md,
     backgroundColor: Colors.primary,
-    borderRadius: Radius.md,
-    paddingVertical: 14,
+    borderRadius: Radius.full,
+    paddingVertical: 15,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',

@@ -13,6 +13,7 @@ import {
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
+import { GlassBackground } from '@/components/GlassBackground';
 import { Colors, Radius, Spacing } from '@/constants/colors';
 import { AppConfig } from '@/constants/config';
 import { AppStore, useAppStore } from '@/services/appStore';
@@ -68,7 +69,8 @@ export default function SettingsScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.safeArea} edges={['top']}>
+    <GlassBackground>
+      <SafeAreaView style={styles.safeArea} edges={['top']}>
       {/* Top Bar */}
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Settings</Text>
@@ -444,21 +446,21 @@ export default function SettingsScreen() {
           </View>
         </View>
       </Modal>
-    </SafeAreaView>
+      </SafeAreaView>
+    </GlassBackground>
   );
 }
 
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: Colors.background,
   },
   header: {
     paddingHorizontal: Spacing.lg,
     paddingVertical: Spacing.md,
-    backgroundColor: Colors.surface,
+    backgroundColor: 'rgba(255, 255, 255, 0.72)',
     borderBottomWidth: 1,
-    borderBottomColor: Colors.border,
+    borderBottomColor: 'rgba(255, 255, 255, 0.94)',
   },
   headerTitle: {
     fontSize: 19,
@@ -688,7 +690,9 @@ const styles = StyleSheet.create({
   },
   dialogCard: {
     width: '100%',
-    backgroundColor: Colors.surface,
+    backgroundColor: Colors.background,
+    borderWidth: 1.5,
+    borderColor: '#FFFFFF',
     borderRadius: Radius.xl,
     padding: Spacing.xl,
   },

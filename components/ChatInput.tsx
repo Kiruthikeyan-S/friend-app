@@ -18,23 +18,23 @@ export function ChatInput({
   onSend,
   onPressMicrophone,
   disabled = false,
-  placeholder = 'Write a message or talk with Aura...',
+  placeholder = 'Ask me something...',
 }: ChatInputProps) {
   const canSend = value.trim().length > 0 && !disabled;
 
   return (
     <View style={styles.outerContainer}>
-      <View style={styles.inputRow}>
+      <View style={styles.glassCapsule}>
         <Pressable
           onPress={onPressMicrophone}
           style={({ pressed }) => [
-            styles.micButton,
+            styles.leftAttachBtn,
             pressed && styles.pressed,
           ]}
           accessibilityRole="button"
-          accessibilityLabel="Open voice assistant"
+          accessibilityLabel="Quick voice or prompt"
         >
-          <Feather name="mic" size={19} color={Colors.accent} />
+          <Feather name="paperclip" size={16} color={Colors.textSecondary} />
         </Pressable>
 
         <TextInput
@@ -54,76 +54,109 @@ export function ChatInput({
         />
 
         <Pressable
-          onPress={onSend}
-          disabled={!canSend}
+          onPress={onPressMicrophone}
           style={({ pressed }) => [
-            styles.sendButton,
-            !canSend && styles.sendButtonDisabled,
-            pressed && canSend && styles.pressed,
+            styles.inlineMicBtn,
+            pressed && styles.pressed,
           ]}
           accessibilityRole="button"
-          accessibilityLabel="Send message"
+          accessibilityLabel="Open voice assistant"
         >
-          <Feather
-            name="arrow-up"
-            size={18}
-            color={canSend ? Colors.textInverse : Colors.textMuted}
-          />
+          <Feather name="mic" size={17} color={Colors.textPrimary} />
         </Pressable>
       </View>
+
+      <Pressable
+        onPress={onSend}
+        disabled={!canSend}
+        style={({ pressed }) => [
+          styles.sendGlassCircle,
+          canSend && styles.sendGlassCircleActive,
+          pressed && canSend && styles.pressed,
+        ]}
+        accessibilityRole="button"
+        accessibilityLabel="Send message"
+      >
+        <Feather
+          name="send"
+          size={17}
+          color={canSend ? Colors.textInverse : Colors.textPrimary}
+        />
+      </Pressable>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   outerContainer: {
-    backgroundColor: Colors.surface,
-    borderTopWidth: 1,
-    borderTopColor: Colors.border,
-    paddingHorizontal: Spacing.lg,
-    paddingVertical: Spacing.md,
-  },
-  inputRow: {
     flexDirection: 'row',
     alignItems: 'flex-end',
-    backgroundColor: Colors.surfaceSoft,
-    borderRadius: Radius.xl,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    paddingHorizontal: Spacing.sm,
-    paddingVertical: 6,
-    gap: Spacing.xs,
+    gap: 10,
+    paddingHorizontal: Spacing.lg,
+    paddingTop: 8,
+    paddingBottom: 12,
+    backgroundColor: 'transparent',
   },
-  micButton: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    backgroundColor: Colors.accentSoft,
+  glassCapsule: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.86)',
+    borderRadius: Radius.full,
+    borderWidth: 1.2,
+    borderColor: 'rgba(255, 255, 255, 0.96)',
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    shadowColor: '#9D7BB0',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.1,
+    shadowRadius: 14,
+    elevation: 3,
+  },
+  leftAttachBtn: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
     alignItems: 'center',
     justifyContent: 'center',
   },
   textInput: {
     flex: 1,
     minHeight: 38,
-    maxHeight: 110,
-    paddingHorizontal: Spacing.sm,
+    maxHeight: 100,
+    paddingHorizontal: 6,
     paddingTop: 8,
     paddingBottom: 8,
-    fontSize: 15,
+    fontSize: 14.5,
     color: Colors.textPrimary,
   },
-  sendButton: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    backgroundColor: Colors.primary,
+  inlineMicBtn: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  sendButtonDisabled: {
-    backgroundColor: Colors.border,
+  sendGlassCircle: {
+    width: 46,
+    height: 46,
+    borderRadius: 23,
+    backgroundColor: 'rgba(255, 255, 255, 0.88)',
+    borderWidth: 1.2,
+    borderColor: 'rgba(255, 255, 255, 0.96)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#9D7BB0',
+    shadowOffset: { width: 0, height: 5 },
+    shadowOpacity: 0.12,
+    shadowRadius: 12,
+    elevation: 3,
+  },
+  sendGlassCircleActive: {
+    backgroundColor: Colors.primary,
+    borderColor: Colors.primary,
   },
   pressed: {
-    opacity: 0.82,
+    opacity: 0.8,
   },
 });

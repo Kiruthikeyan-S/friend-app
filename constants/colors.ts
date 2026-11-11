@@ -1,53 +1,65 @@
 /**
- * Light-Theme Color Palette & Design Tokens
- * Designed for a warm, calm, human-centric Personal AI Voice Assistant.
- * Strict light mode only — no dark mode tokens.
+ * Light-Theme Pastel Glassmorphism Color Palette & Design Tokens
+ * Inspired by soft rose-lavender frosted glass, iridescent pearl orbs,
+ * and crisp white translucent cards. Strict light mode only.
  */
 
 export const Colors = {
-  // Backgrounds
-  background: '#FAF9F6', // Soft warm alabaster main background
-  surface: '#FFFFFF', // Pure white elevated card / sheet surface
-  surfaceSoft: '#F3F2EE', // Soft neutral stone for inputs & secondary pills
-  surfaceHighlight: '#EBF3F0', // Subtle sage tint for active states & assistant accents
-  surfaceWarning: '#FEF8EC', // Soft warm amber tint for Phase 1 notices
-  surfaceDanger: '#FDF2F2', // Soft rose tint for destructive actions
+  // Ambient Glassmorphism Backgrounds
+  background: '#F7EFF6', // Soft pastel blush-lavender base canvas
+  surface: 'rgba(255, 255, 255, 0.80)', // Frosted white glass card surface
+  surfaceSolid: '#FFFFFF', // Pure white for high-contrast pills & modals
+  surfaceSoft: 'rgba(255, 255, 255, 0.62)', // Translucent secondary glass pill
+  surfaceHighlight: 'rgba(236, 106, 181, 0.14)', // Soft orchid-pink glass tint
+  surfaceWarning: 'rgba(254, 243, 199, 0.85)',
+  surfaceDanger: 'rgba(254, 226, 226, 0.85)',
 
-  // Brand & Interactive Accents
-  primary: '#2B6CB0', // Calm, trustworthy slate-blue primary action
-  primarySoft: '#EBF4FF', // Soft blue wash for badges & active pills
-  primaryDark: '#1E4E8C',
-  accent: '#2F855A', // Warm sage green for voice / active listening
-  accentSoft: '#E6F4EA',
+  // Iridescent & Glass Glows
+  orbPink: '#F482C8',
+  orbMagenta: '#E566B2',
+  orbViolet: '#A78BFA',
+  orbCyan: '#5CE1E6',
+  orbAqua: '#7BF1A8',
+  ambientPinkGlow: 'rgba(244, 130, 200, 0.24)',
+  ambientLavenderGlow: 'rgba(167, 139, 250, 0.18)',
+  ambientCyanGlow: 'rgba(92, 225, 230, 0.18)',
+
+  // Brand & Interactive Accents (Orchid Rose & Violet)
+  primary: '#D95BA3', // Vibrant pastel orchid-magenta primary accent ("Ask Me", User Bubble)
+  primarySoft: 'rgba(236, 106, 181, 0.15)', // Frosted rose wash
+  primaryDark: '#B83D84',
+  accent: '#8B5CF6', // Iridescent soft violet for voice pulse & active states
+  accentSoft: 'rgba(139, 92, 246, 0.13)',
 
   // Typography
-  textPrimary: '#1A1D20', // Crisp deep charcoal for primary reading
-  textSecondary: '#5A6065', // Balanced neutral slate for descriptions
-  textMuted: '#8C939A', // Subtle grey for timestamps & placeholders
+  textPrimary: '#1E1B24', // Deep plum-charcoal for crisp readability
+  textSecondary: '#655E70', // Soft muted mauve-slate for subtitles
+  textMuted: '#968EA3', // Delicate lavender-grey for timestamps & placeholders
   textInverse: '#FFFFFF',
 
-  // Chat Bubbles
-  userBubble: '#1A1D20', // Refined dark slate for user messages
+  // Chat Bubbles (Matching "Smart Chat" Glassmorphism Design)
+  userBubble: '#EC6AB5', // Signature pastel rose-magenta pill from mockup
   userBubbleText: '#FFFFFF',
-  assistantBubble: '#FFFFFF', // Clean card bubble for assistant
-  assistantBubbleText: '#1A1D20',
+  assistantBubble: 'rgba(255, 255, 255, 0.88)', // Frosted glass bubble for assistant
+  assistantBubbleText: '#231F2B',
 
-  // Borders & Dividers
-  border: '#E8E6E1',
-  borderFocused: '#2B6CB0',
-  divider: '#F0EFEA',
+  // Glass Borders & Dividers
+  border: 'rgba(255, 255, 255, 0.92)', // Specular white glass edge
+  borderSubtle: 'rgba(225, 208, 228, 0.55)', // Soft pastel outline
+  borderFocused: '#EC6AB5',
+  divider: 'rgba(225, 208, 228, 0.45)',
 
   // Semantic Status
-  success: '#2F855A',
-  warning: '#C05621',
-  error: '#C53030',
-  info: '#2B6CB0',
+  success: '#10B981',
+  warning: '#D97706',
+  error: '#E11D48',
+  info: '#8B5CF6',
 
   // Voice States
-  voiceIdle: '#2B6CB0',
-  voiceListening: '#2F855A',
-  voiceProcessing: '#D69E2E',
-  voiceSpeaking: '#3182CE',
+  voiceIdle: '#D95BA3',
+  voiceListening: '#EC6AB5',
+  voiceProcessing: '#8B5CF6',
+  voiceSpeaking: '#06B6D4',
 } as const;
 
 export const Spacing = {
@@ -61,9 +73,9 @@ export const Spacing = {
 } as const;
 
 export const Radius = {
-  sm: 10,
-  md: 14,
-  lg: 18,
-  xl: 24,
+  sm: 12,
+  md: 18,
+  lg: 24,
+  xl: 30,
   full: 9999,
 } as const;

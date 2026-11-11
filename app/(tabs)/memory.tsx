@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
+import { GlassBackground } from '@/components/GlassBackground';
 import { MemoryCard } from '@/components/MemoryCard';
 import { Colors, Radius, Spacing } from '@/constants/colors';
 import { ApiService } from '@/services/api';
@@ -116,7 +117,8 @@ export default function MemoryManagementScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.safeArea} edges={['top']}>
+    <GlassBackground>
+      <SafeAreaView style={styles.safeArea} edges={['top']}>
       {/* Top Bar */}
       <View style={styles.header}>
         <View>
@@ -442,14 +444,14 @@ export default function MemoryManagementScreen() {
           </View>
         </KeyboardAvoidingView>
       </Modal>
-    </SafeAreaView>
+      </SafeAreaView>
+    </GlassBackground>
   );
 }
 
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: Colors.background,
   },
   header: {
     flexDirection: 'row',
@@ -457,9 +459,9 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: Spacing.lg,
     paddingVertical: Spacing.md,
-    backgroundColor: Colors.surface,
+    backgroundColor: 'rgba(255, 255, 255, 0.72)',
     borderBottomWidth: 1,
-    borderBottomColor: Colors.border,
+    borderBottomColor: 'rgba(255, 255, 255, 0.94)',
   },
   headerTitle: {
     fontSize: 19,
@@ -674,9 +676,11 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
   },
   modalSheet: {
-    backgroundColor: Colors.surface,
+    backgroundColor: Colors.background,
     borderTopLeftRadius: Radius.xl,
     borderTopRightRadius: Radius.xl,
+    borderWidth: 1.5,
+    borderColor: '#FFFFFF',
     padding: Spacing.xl,
   },
   modalHeader: {
