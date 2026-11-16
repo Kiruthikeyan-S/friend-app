@@ -121,4 +121,14 @@ npx expo start
 6. Open **Expo Go** on your Android phone and scan the QR code displayed in the terminal.
    *(If your Wi-Fi blocks local peer connections, run `npx expo start --tunnel`.)*
 
+---
+
+## 4. Building an Installable Android `.apk` (Expo EAS)
+
+```powershell
+npm install -g eas-cli
+eas login
+eas build -p android --profile preview
+```
+
 # friend-app
