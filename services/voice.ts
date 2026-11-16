@@ -6,7 +6,8 @@
  */
 
 import { AudioModule } from 'expo-audio';
-import { File } from 'expo-file-system';
+import * as LegacyFileSystem from 'expo-file-system/legacy';
+import { requireNativeModule } from 'expo-modules-core';
 import * as Speech from 'expo-speech';
 import { Platform } from 'react-native';
 import { AppConfig } from '@/constants/config';
@@ -133,16 +134,36 @@ export const VoiceService = {
 
   /**
    * Reads a local recorded audio URI (`file://...`) into a base64 string
-   * using native `expo-file-system` JSI (`new File(uri).base64()`) on Android/iOS
-   * so the complete `.m4a` recording is sent to FastAPI Whisper STT reliably.
+   * using native `expo-file-system/legacy` (`readAsStringAsync` in Kotlin) and
+   * native `FileSystemFile(uri).base64()` (bypassing JS `Paths.join` URL bug).
    */
   async readAudioUriAsBase64(uri: string): Promise<string> {
     if (Platform.OS !== 'web') {
+      // 1. Primary native path: FileSystemLegacyModule.readAsStringAsync (Kotlin FileInputStream -> Base64)
       try {
-        const nativeFile = new File(uri);
-        const b64 = await nativeFile.base64();
-        if (b64 && b64.length > 64) {
-          return b64;
+        const b64Legacy = await LegacyFileSystem.readAsStringAsync(uri, {
+          encoding: LegacyFileSystem.EncodingType.Base64,
+        });
+        if (b64Legacy && b64Legacy.length > 0) {
+          return b64Legacy;
+        }
+      } catch {
+        // Continue to next native reader
+      }
+
+      // 2. Secondary native path: Direct Native FileSystemFile constructor (bypasses JS Paths.join)
+      try {
+        const NativeFS = requireNativeModule<{
+          FileSystemFile: new (fileUri: string) => {
+            base64: () => Promise<string>;
+          };
+        }>('FileSystem');
+        if (NativeFS?.FileSystemFile) {
+          const rawFile = new NativeFS.FileSystemFile(uri);
+          const b64Direct = await rawFile.base64();
+          if (b64Direct && b64Direct.length > 0) {
+            return b64Direct;
+          }
         }
       } catch {
         // Fallback to fetch + FileReader below if needed
@@ -192,14 +213,32 @@ export const VoiceService = {
       options.language
     );
 
+    const targetPitch = options.pitch ?? resolved.pitch;
+    const targetRate = options.rate ?? resolved.rate;
+    // On Android, SpeechModule.kt uses Locale.Builder().setLanguage(it).build() which requires
+    // a 2-letter ISO 639 code ('en', 'hi', 'es', 'fr'), and Android getVoices() includes uninstalled
+    // network voices that fail if selected via `voice`.
+    const androidSafeLang = (options.language || resolved.language || 'en')
+      .split('-')[0]
+      .toLowerCase();
+
     Speech.speak(cleanText, {
-      voice: resolved.voiceIdentifier,
-      language: resolved.language,
-      pitch: options.pitch ?? resolved.pitch,
-      rate: options.rate ?? resolved.rate,
+      voice: Platform.OS === 'android' ? undefined : resolved.voiceIdentifier,
+      language: Platform.OS === 'android' ? androidSafeLang : resolved.language,
+      pitch: targetPitch,
+      rate: targetRate,
       onDone: options.onDone,
       onStopped: options.onStopped,
-      onError: options.onError,
+      onError: () => {
+        // Retry once with default system voice if custom voice/locale failed
+        Speech.speak(cleanText, {
+          pitch: targetPitch,
+          rate: targetRate,
+          onDone: options.onDone,
+          onStopped: options.onStopped,
+          onError: options.onError,
+        });
+      },
     });
   },
 

@@ -7,7 +7,7 @@
 import Constants from 'expo-constants';
 import { Platform } from 'react-native';
 
-const FALLBACK_LAN_IP = '10.126.188.90';
+const FALLBACK_LAN_IP = '192.168.88.5';
 
 const getDefaultBackendUrl = (): string => {
   // 1. Automatically extract LAN IP from Expo Metro bundler hostUri if running on a physical device

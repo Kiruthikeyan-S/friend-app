@@ -22,6 +22,9 @@ export type VoiceInteractionState = 'idle' | 'listening' | 'processing' | 'speak
 
 const METERING_RECORDING_OPTIONS = {
   ...RecordingPresets.HIGH_QUALITY,
+  numberOfChannels: 1,
+  sampleRate: 44100,
+  bitRate: 128000,
   isMeteringEnabled: true,
 };
 
@@ -49,6 +52,8 @@ export function useVoice() {
   const isContinuousActiveRef = useRef<boolean>(false);
   const isFinishingRef = useRef<boolean>(false);
   const hasDetectedSpeechRef = useRef<boolean>(false);
+  const hasValidMeteringRef = useRef<boolean>(false);
+  const firstSpeechTimestampRef = useRef<number>(0);
   const lastSpeechTimestampRef = useRef<number>(0);
   const recordingStartTimestampRef = useRef<number>(0);
 
@@ -89,26 +94,34 @@ export function useVoice() {
     const now = Date.now();
     const elapsedMs = now - recordingStartTimestampRef.current;
 
-    // Android MediaRecorder metering: 20*log10(amp/32767).
-    // Room noise is typically -30 dB to -22 dB; active human speech is > -18 dB.
-    if (level > -18) {
-      hasDetectedSpeechRef.current = true;
-      lastSpeechTimestampRef.current = now;
-    } else if (
-      hasDetectedSpeechRef.current &&
-      level < -24 &&
-      elapsedMs >= 1300 &&
-      now - lastSpeechTimestampRef.current >= 850
-    ) {
-      // User spoke and paused for 0.85s -> Respond immediately!
-      isFinishingRef.current = true;
-      finishListeningRef.current();
+    if (level > -150) {
+      hasValidMeteringRef.current = true;
     }
-  }, [
-    interactionState,
-    recorderState.metering,
-    store.voiceSettings.continuousMode,
-  ]);
+
+    // Android MediaRecorder metering: 20*log10(amp/32767).
+    // Silence/quiet room is < -28 dB; human voice speaking is > -25 dB.
+    if (level > -25) {
+      if (!hasDetectedSpeechRef.current) {
+        hasDetectedSpeechRef.current = true;
+        firstSpeechTimestampRef.current = now;
+        setStatusMessage(
+          "Hearing you... Keep speaking, I'll reply as soon as you pause!"
+        );
+      }
+      lastSpeechTimestampRef.current = now;
+    }
+
+    if (hasDetectedSpeechRef.current && elapsedMs >= 1500) {
+      const silenceMs = now - lastSpeechTimestampRef.current;
+      const speechDurationMs = now - firstSpeechTimestampRef.current;
+
+      // User spoke and paused for 0.8s, OR spoke for 3.6s continuously in a noisy room
+      if ((level < -26 && silenceMs >= 800) || speechDurationMs >= 3600) {
+        isFinishingRef.current = true;
+        finishListeningRef.current();
+      }
+    }
+  }, [interactionState, recorderState.metering]);
 
   const requestPermission = useCallback(async (): Promise<MicPermissionStatus> => {
     const status = await VoiceService.requestMicrophonePermission();
@@ -135,40 +148,64 @@ export function useVoice() {
     }
 
     try {
+      try {
+        if (audioRecorder.isRecording) {
+          await audioRecorder.stop();
+        }
+      } catch {
+        // Ignore if not recording
+      }
+
       await setAudioModeAsync({
         allowsRecording: true,
         playsInSilentMode: true,
       });
 
-      await audioRecorder.prepareToRecordAsync();
+      await audioRecorder.prepareToRecordAsync(METERING_RECORDING_OPTIONS);
       audioRecorder.record();
 
       const now = Date.now();
       isContinuousActiveRef.current = true;
       isFinishingRef.current = false;
       hasDetectedSpeechRef.current = false;
+      hasValidMeteringRef.current = false;
+      firstSpeechTimestampRef.current = 0;
       lastSpeechTimestampRef.current = now;
       recordingStartTimestampRef.current = now;
 
       setRecordingSeconds(0);
       setInteractionState('listening');
       setStatusMessage(
-        store.voiceSettings.continuousMode
-          ? 'Listening... Speak naturally—replies immediately when you pause!'
-          : 'Listening... Tap the orb as soon as you finish speaking'
+        'Listening... Speak naturally—Aura answers out loud immediately!'
       );
 
       timerRef.current = setInterval(() => {
         setRecordingSeconds((prev) => prev + 1);
       }, 1000);
 
-      // Automatic voice turn window: sends speech automatically even if metering stays flat
-      autoSendTimeoutRef.current = setTimeout(() => {
-        if (!isFinishingRef.current) {
-          isFinishingRef.current = true;
-          finishListeningRef.current();
-        }
-      }, autoSendSeconds * 1000);
+      // Smart automatic voice window:
+      // - If speech was detected or device doesn't report metering, process right away
+      // - If user hasn't started speaking yet (still silent), keep mic open instead of cutting off
+      const scheduleSilenceWindowCheck = (delayMs: number) => {
+        autoSendTimeoutRef.current = setTimeout(() => {
+          if (isFinishingRef.current) {
+            return;
+          }
+          const totalElapsed = Date.now() - recordingStartTimestampRef.current;
+          if (
+            hasDetectedSpeechRef.current ||
+            !hasValidMeteringRef.current ||
+            totalElapsed >= 10000
+          ) {
+            isFinishingRef.current = true;
+            finishListeningRef.current();
+          } else {
+            // Still waiting for user to start speaking -> check again in 2s without interrupting mic
+            scheduleSilenceWindowCheck(2000);
+          }
+        }, delayMs);
+      };
+      scheduleSilenceWindowCheck(autoSendSeconds * 1000);
     } catch (err) {
       isContinuousActiveRef.current = false;
       isFinishingRef.current = false;
@@ -195,9 +232,18 @@ export function useVoice() {
     setStatusMessage('Replying immediately...');
 
     try {
+      // Guarantee at least 1.5s of recording before calling stop() so Android MPEG4Writer
+      // always flushes AAC frames and writes the moov atom cleanly.
+      const elapsedSinceStart = Date.now() - recordingStartTimestampRef.current;
+      if (elapsedSinceStart > 0 && elapsedSinceStart < 1500) {
+        await new Promise((resolve) =>
+          setTimeout(resolve, 1500 - elapsedSinceStart)
+        );
+      }
+
       const stopResult = await audioRecorder.stop();
-      // Wait 80ms so Android MediaRecorder flushes the MPEG-4 moov atom to disk
-      await new Promise((resolve) => setTimeout(resolve, 80));
+      // Wait 120ms so Android MediaRecorder flushes the MPEG-4 moov atom to disk
+      await new Promise((resolve) => setTimeout(resolve, 120));
       const recordedUri =
         (stopResult as { url?: string } | undefined)?.url || audioRecorder.uri;
 
