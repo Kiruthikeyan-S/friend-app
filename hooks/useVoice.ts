@@ -254,7 +254,9 @@ export function useVoice() {
         return;
       }
 
-      const audioBase64 = await VoiceService.readAudioUriAsBase64(recordedUri);
+      const audioBase64 = await VoiceService.readAudioUriAsBase64(
+        recordedUri
+      ).catch(() => '');
       const currentState = AppStore.getState();
       const sessionId = currentState.activeLiveConversationId;
       const existingHistory = (
@@ -264,6 +266,7 @@ export function useVoice() {
       const voiceStyleNote = AppStore.getEffectiveVoiceStyleNote();
 
       const res = await ApiService.sendVoiceTurn({
+        audioUri: recordedUri,
         audioBase64,
         filename: 'speech.m4a',
         mimeType: 'audio/m4a',
