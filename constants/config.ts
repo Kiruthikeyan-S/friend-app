@@ -36,7 +36,7 @@ const getDefaultBackendUrl = (): string => {
 };
 
 export const AppConfig = {
-  appName: 'Aura',
+  appName: 'Anytime Anywhere Chat',
   appSubtitle: 'Personal Voice Friend',
   version: '2.0 Live AI',
   currentPhase: 2,
