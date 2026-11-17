@@ -608,20 +608,75 @@ export const AppStore = {
   },
 
   /**
-   * Loads memories saved in Supabase and merges them with the local list
-   * (cloud copy wins when the same id exists in both).
+   * Loads memories and chat messages saved in Supabase and merges them with
+   * the local state (cloud copy wins when the same id exists in both).
    */
   async hydrateFromSupabase(): Promise<void> {
-    const cloudMemories = await SupabaseService.fetchApprovedMemories();
-    if (!cloudMemories || cloudMemories.length === 0) return;
+    const [cloudMemories, cloudMessages] = await Promise.all([
+      SupabaseService.fetchApprovedMemories(),
+      SupabaseService.fetchChatMessages(),
+    ]);
 
-    const cloudIds = new Set(cloudMemories.map((m) => m.id));
-    const localOnly = state.memories.filter((m) => !cloudIds.has(m.id));
-    state = {
-      ...state,
-      memories: [...cloudMemories, ...localOnly],
-    };
-    notify();
+    let changed = false;
+    let nextState = { ...state };
+
+    if (cloudMemories && cloudMemories.length > 0) {
+      const cloudIds = new Set(cloudMemories.map((m) => m.id));
+      const localOnly = state.memories.filter((m) => !cloudIds.has(m.id));
+      nextState = {
+        ...nextState,
+        memories: [...cloudMemories, ...localOnly],
+      };
+      changed = true;
+    }
+
+    if (cloudMessages && cloudMessages.length > 0) {
+      const grouped: Record<string, ChatMessage[]> = {
+        ...state.liveMessagesBySession,
+      };
+      for (const msg of cloudMessages) {
+        const list = grouped[msg.conversationId] || [];
+        if (!list.some((existing) => existing.id === msg.id)) {
+          grouped[msg.conversationId] = [...list, msg];
+        }
+      }
+
+      const sessions = [...state.liveSessions];
+      for (const [sessionId, msgs] of Object.entries(grouped)) {
+        if (msgs.length === 0) continue;
+        const last = msgs[msgs.length - 1];
+        const firstUser = msgs.find((m) => m.role === 'user');
+        const idx = sessions.findIndex((s) => s.id === sessionId);
+        const sessionObj: ConversationSession = {
+          id: sessionId,
+          title: firstUser
+            ? firstUser.content.slice(0, 34) +
+              (firstUser.content.length > 34 ? '...' : '')
+            : 'Synced Conversation',
+          previewText: last.content,
+          updatedAt: last.createdAt,
+          messageCount: msgs.length,
+          isExamplePreview: false,
+        };
+        if (idx >= 0) {
+          sessions[idx] = sessionObj;
+        } else {
+          sessions.unshift(sessionObj);
+        }
+      }
+
+      nextState = {
+        ...nextState,
+        liveMessagesBySession: grouped,
+        liveSessions: sessions,
+      };
+      changed = true;
+    }
+
+    if (changed) {
+      state = nextState;
+      notify();
+    }
   },
 
   updateMemoryPermissions(partial: Partial<MemoryPermissions>) {

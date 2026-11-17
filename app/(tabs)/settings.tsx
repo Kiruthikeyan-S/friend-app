@@ -101,9 +101,9 @@ export default function SettingsScreen() {
               <Text style={styles.profileName}>{userProfile.name}</Text>
               <Text style={styles.profileEmail}>{userProfile.email}</Text>
               <View style={styles.authStatusBadge}>
-                <Feather name="clock" size={11} color={Colors.warning} />
-                <Text style={styles.authStatusText}>
-                  Local Profile · Firebase Auth in Phase 6
+                <Feather name="cloud" size={11} color={Colors.success} />
+                <Text style={[styles.authStatusText, { color: Colors.success }]}>
+                  Synced with Supabase Cloud
                 </Text>
               </View>
             </View>
@@ -181,10 +181,10 @@ export default function SettingsScreen() {
           <View style={styles.settingToggleRow}>
             <View style={styles.settingTextCol}>
               <Text style={styles.settingTitle}>
-                Auto-play Assistant Voice Replies
+                Auto-play Voice on Text Chat
               </Text>
               <Text style={styles.settingDesc}>
-                Automatically speak responses when Phase 4 TTS is connected.
+                Keep OFF for text-only answers in Smart Chat (Voice tab always speaks).
               </Text>
             </View>
             <Switch

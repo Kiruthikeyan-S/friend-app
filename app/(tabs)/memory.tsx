@@ -155,7 +155,7 @@ export default function MemoryManagementScreen() {
               </Text>
               <Text style={styles.consentBannerSubtitle}>
                 Aura never saves personal details automatically. Every item here
-                was explicitly approved by you (Supabase sync in Phase 7).
+                was explicitly approved by you and backed up to Supabase.
               </Text>
             </View>
           </View>

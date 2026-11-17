@@ -120,6 +120,34 @@ export const SupabaseService = {
     }
   },
 
+  async fetchChatMessages(): Promise<ChatMessage[] | null> {
+    const { url, anonKey, isConfigured } = getSupabaseConfig();
+    if (!isConfigured) return null;
+
+    try {
+      const res = await fetch(
+        `${url}/rest/v1/messages?select=*&order=inserted_at.asc&limit=200`,
+        {
+          headers: buildHeaders(anonKey),
+        }
+      );
+      if (!res.ok) return null;
+      const rows = await res.json();
+      if (!Array.isArray(rows)) return null;
+
+      return rows.map((row: Record<string, unknown>) => ({
+        id: String(row.id || `msg-${Date.now()}`),
+        conversationId: String(row.conversation_id || 'live-session-1'),
+        role: row.role === 'user' ? 'user' : 'assistant',
+        content: String(row.content || ''),
+        createdAt: String(row.created_at || 'Synced'),
+        isExamplePreview: false,
+      }));
+    } catch {
+      return null;
+    }
+  },
+
   async insertChatMessage(message: ChatMessage): Promise<boolean> {
     const { url, anonKey, isConfigured } = getSupabaseConfig();
     if (!isConfigured) return false;
