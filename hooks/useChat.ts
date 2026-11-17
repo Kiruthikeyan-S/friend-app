@@ -145,10 +145,12 @@ export function useChat() {
               backendRes.message ||
               "I'm here! Let me know what you'd like to talk about.";
           }
-        } catch {
+        } catch (err) {
           setBackendOnline(false);
           replyContent =
-            'Could not reach the backend server. Make sure your phone and PC are on the same Wi-Fi network.';
+            err instanceof Error
+              ? `Connection error: ${err.message}`
+              : 'Could not reach the AI service. Please check your internet connection.';
         }
 
         const assistantMsgId = `msg-assistant-${Date.now()}`;

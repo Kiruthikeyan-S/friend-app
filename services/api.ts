@@ -114,6 +114,57 @@ Respond strictly in valid JSON with this exact schema:
 }`;
 }
 
+const CLOUD_MODELS = [
+  'openai/gpt-oss-20b',
+  'openai/gpt-oss-120b',
+  'qwen/qwen3.8-27b',
+] as const;
+
+async function callGroqChatModel(
+  apiKey: string,
+  modelName: string,
+  messages: Array<{ role: string; content: string }>,
+  useJsonMode: boolean
+): Promise<string> {
+  const body: Record<string, unknown> = {
+    model: modelName,
+    messages,
+    temperature: 0.6,
+    max_tokens: 280,
+  };
+
+  if (modelName.includes('gpt-oss')) {
+    body.reasoning_effort = 'low';
+  }
+  if (useJsonMode && !modelName.includes('qwen')) {
+    body.response_format = { type: 'json_object' };
+  }
+
+  const response = await fetch(
+    'https://api.groq.com/openai/v1/chat/completions',
+    {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(body),
+    }
+  );
+
+  if (!response.ok) {
+    const errText = await response.text().catch(() => '');
+    const error = new Error(
+      `Cloud AI HTTP ${response.status}: ${errText.slice(0, 140)}`
+    ) as Error & { status?: number };
+    error.status = response.status;
+    throw error;
+  }
+
+  const data = await response.json();
+  return String(data?.choices?.[0]?.message?.content || '').trim();
+}
+
 async function generateDirectCloudReply(
   userMessage: string,
   history: Array<{ role: string; content: string }>,
@@ -132,29 +183,57 @@ async function generateDirectCloudReply(
     { role: 'user', content: userMessage },
   ];
 
-  const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      model: 'llama-3.3-70b-versatile',
-      messages,
-      temperature: 0.65,
-      max_tokens: 320,
-      response_format: { type: 'json_object' },
-    }),
-  });
+  let rawContent = '';
+  let usedModel = CLOUD_MODELS[0];
+  let lastError: unknown = null;
 
-  if (!response.ok) {
-    const errText = await response.text().catch(() => '');
-    throw new Error(`Cloud AI HTTP ${response.status}: ${errText.slice(0, 120)}`);
+  for (const candidateModel of CLOUD_MODELS) {
+    try {
+      rawContent = await callGroqChatModel(
+        apiKey,
+        candidateModel,
+        messages,
+        true
+      );
+      usedModel = candidateModel;
+      break;
+    } catch (err) {
+      lastError = err;
+      const status = (err as { status?: number })?.status;
+      if (status === 400 || status === 422) {
+        try {
+          rawContent = await callGroqChatModel(
+            apiKey,
+            candidateModel,
+            messages,
+            false
+          );
+          usedModel = candidateModel;
+          break;
+        } catch (innerErr) {
+          lastError = innerErr;
+          continue;
+        }
+      }
+      continue;
+    }
   }
 
-  const data = await response.json();
-  const rawContent: string =
-    data?.choices?.[0]?.message?.content || '{"reply":"I am right here with you!","memories":[]}';
+  if (!rawContent) {
+    throw lastError instanceof Error
+      ? lastError
+      : new Error('Unable to generate AI response.');
+  }
+
+  if (rawContent.includes('</think>')) {
+    rawContent = rawContent.split('</think>').pop()?.trim() || rawContent;
+  }
+  if (rawContent.startsWith('```')) {
+    const lines = rawContent.split('\n');
+    if (lines.length >= 3) {
+      rawContent = lines.slice(1, -1).join('\n').trim();
+    }
+  }
 
   try {
     const parsed = JSON.parse(rawContent);
@@ -190,14 +269,14 @@ async function generateDirectCloudReply(
       status: 'ok',
       reply: String(parsed.reply || rawContent).trim(),
       memories,
-      model: 'groq-https-cloud',
+      model: usedModel,
     };
   } catch {
     return {
       status: 'ok',
       reply: rawContent.trim(),
       memories: [],
-      model: 'groq-https-cloud',
+      model: usedModel,
     };
   }
 }
