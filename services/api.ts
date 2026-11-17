@@ -9,7 +9,7 @@
 import * as LegacyFileSystem from 'expo-file-system/legacy';
 import { Platform } from 'react-native';
 import { AppConfig } from '@/constants/config';
-import { ExtractedMemoryCandidate, MemoryCategory } from '@/types/memory';
+import { ExtractedMemoryCandidate, MemoryCategory, normalizeMemoryCategory } from '@/types/memory';
 
 export interface BackendHealthResponse {
   status: string;
@@ -237,7 +237,6 @@ async function generateDirectCloudReply(
 
   try {
     const parsed = JSON.parse(rawContent);
-    const validCategories = new Set(['profile', 'preferences', 'work', 'interests']);
     const memories = Array.isArray(parsed.memories)
       ? parsed.memories
           .filter(
@@ -255,9 +254,7 @@ async function generateDirectCloudReply(
               idx: number
             ) => ({
               id: `cloud-mem-${Date.now()}-${idx}`,
-              category: (validCategories.has(String(m.category).toLowerCase())
-                ? String(m.category).toLowerCase()
-                : 'preferences') as MemoryCategory,
+              category: normalizeMemoryCategory(m.category),
               title: String(m.title).trim(),
               content: String(m.content).trim(),
               explicit_save: Boolean(m.explicit_save ?? true),

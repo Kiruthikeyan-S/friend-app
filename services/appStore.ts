@@ -6,6 +6,7 @@
 
 import { useEffect, useState } from 'react';
 import { AppConfig } from '@/constants/config';
+import { SupabaseService } from '@/services/supabase';
 import { ChatMessage, ChatMode, ConversationSession } from '@/types/chat';
 import {
   ExtractedMemoryCandidate,
@@ -318,6 +319,7 @@ export const AppStore = {
         } else {
           updatedMemories.unshift(newItem);
         }
+        SupabaseService.upsertMemory(newItem);
         savedTitles.push(`${cand.title}: ${cand.content}`);
       }
 
@@ -470,6 +472,7 @@ export const AppStore = {
         [sessionId]: updatedMessages,
       },
     };
+    SupabaseService.insertChatMessage(message);
     notify();
   },
 
@@ -540,6 +543,7 @@ export const AppStore = {
       ...state,
       memories: [newItem, ...state.memories],
     };
+    SupabaseService.upsertMemory(newItem);
     notify();
     return newItem;
   },
@@ -577,6 +581,10 @@ export const AppStore = {
           : item
       ),
     };
+    const edited = state.memories.find((item) => item.id === id);
+    if (edited) {
+      SupabaseService.upsertMemory(edited);
+    }
     notify();
   },
 
@@ -585,13 +593,33 @@ export const AppStore = {
       ...state,
       memories: state.memories.filter((item) => item.id !== id),
     };
+    SupabaseService.deleteMemory(id);
     notify();
   },
 
   clearAllMemories() {
+    const idsToDelete = state.memories.map((item) => item.id);
     state = {
       ...state,
       memories: [],
+    };
+    idsToDelete.forEach((id) => SupabaseService.deleteMemory(id));
+    notify();
+  },
+
+  /**
+   * Loads memories saved in Supabase and merges them with the local list
+   * (cloud copy wins when the same id exists in both).
+   */
+  async hydrateFromSupabase(): Promise<void> {
+    const cloudMemories = await SupabaseService.fetchApprovedMemories();
+    if (!cloudMemories || cloudMemories.length === 0) return;
+
+    const cloudIds = new Set(cloudMemories.map((m) => m.id));
+    const localOnly = state.memories.filter((m) => !cloudIds.has(m.id));
+    state = {
+      ...state,
+      memories: [...cloudMemories, ...localOnly],
     };
     notify();
   },
@@ -666,3 +694,8 @@ export function useAppStore(): AppState {
 
   return snapshot;
 }
+
+// Load saved memories from Supabase once when the app starts
+AppStore.hydrateFromSupabase().catch(() => {
+  // Offline or Supabase unreachable — keep local memories
+});

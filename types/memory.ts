@@ -1,5 +1,20 @@
 export type MemoryCategory = 'Profile' | 'Preferences' | 'Work' | 'Interests';
 
+/** Maps any casing ("profile", "PROFILE", "Profile") to the app's MemoryCategory. */
+export function normalizeMemoryCategory(raw: unknown): MemoryCategory {
+  const value = String(raw ?? '').trim().toLowerCase();
+  switch (value) {
+    case 'profile':
+      return 'Profile';
+    case 'work':
+      return 'Work';
+    case 'interests':
+      return 'Interests';
+    default:
+      return 'Preferences';
+  }
+}
+
 export interface MemoryItem {
   id: string;
   category: MemoryCategory;
