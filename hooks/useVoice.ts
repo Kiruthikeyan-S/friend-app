@@ -13,6 +13,7 @@ import {
   useAudioRecorder,
   useAudioRecorderState,
 } from 'expo-audio';
+import * as LegacyFileSystem from 'expo-file-system/legacy';
 import { ApiService } from '@/services/api';
 import { AppStore, useAppStore } from '@/services/appStore';
 import { MicPermissionStatus, VoiceService } from '@/services/voice';
@@ -279,6 +280,13 @@ export function useVoice() {
         approvedMemories,
         voiceStyleNote,
       });
+
+      // Clean up temporary recorded .m4a file after upload to keep phone storage & cache lean
+      if (currentState.privacySettings.localAudioCleanup) {
+        LegacyFileSystem.deleteAsync(recordedUri, { idempotent: true }).catch(
+          () => {}
+        );
+      }
 
       if (res.status === 'error') {
         isFinishingRef.current = false;

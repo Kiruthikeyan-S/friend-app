@@ -49,7 +49,7 @@ export const SupabaseService = {
 
     try {
       const res = await fetch(
-        `${url}/rest/v1/memories?select=*&order=created_at.desc`,
+        `${url}/rest/v1/memories?select=id,category,title,content,approved,created_at&order=created_at.desc&limit=50`,
         {
           headers: buildHeaders(anonKey),
         }
@@ -126,7 +126,7 @@ export const SupabaseService = {
 
     try {
       const res = await fetch(
-        `${url}/rest/v1/messages?select=*&order=inserted_at.asc&limit=200`,
+        `${url}/rest/v1/messages?select=id,conversation_id,role,content,created_at&order=inserted_at.desc&limit=100`,
         {
           headers: buildHeaders(anonKey),
         }
@@ -135,14 +135,16 @@ export const SupabaseService = {
       const rows = await res.json();
       if (!Array.isArray(rows)) return null;
 
-      return rows.map((row: Record<string, unknown>) => ({
-        id: String(row.id || `msg-${Date.now()}`),
-        conversationId: String(row.conversation_id || 'live-session-1'),
-        role: row.role === 'user' ? 'user' : 'assistant',
-        content: String(row.content || ''),
-        createdAt: String(row.created_at || 'Synced'),
-        isExamplePreview: false,
-      }));
+      return rows
+        .reverse()
+        .map((row: Record<string, unknown>) => ({
+          id: String(row.id || `msg-${Date.now()}`),
+          conversationId: String(row.conversation_id || 'live-session-1'),
+          role: row.role === 'user' ? 'user' : 'assistant',
+          content: String(row.content || ''),
+          createdAt: String(row.created_at || 'Synced'),
+          isExamplePreview: false,
+        }));
     } catch {
       return null;
     }

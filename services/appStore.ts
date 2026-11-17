@@ -443,7 +443,8 @@ export const AppStore = {
 
   appendLiveMessage(sessionId: string, message: ChatMessage) {
     const existing = state.liveMessagesBySession[sessionId] || [];
-    const updatedMessages = [...existing, message];
+    // Keep at most the latest 120 messages per session in RAM for smooth Android performance
+    const updatedMessages = [...existing, message].slice(-120);
 
     const updatedSessions = state.liveSessions.map((session) => {
       if (session.id !== sessionId) return session;
