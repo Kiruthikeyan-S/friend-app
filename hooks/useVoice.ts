@@ -116,12 +116,12 @@ export function useVoice() {
       lastSpeechTimestampRef.current = now;
     }
 
-    if (hasDetectedSpeechRef.current && elapsedMs >= 1600) {
+    if (hasDetectedSpeechRef.current && elapsedMs >= 1100) {
       const silenceMs = now - lastSpeechTimestampRef.current;
       const speechDurationMs = now - firstSpeechTimestampRef.current;
 
-      // Wait 1.35s of silence so natural mid-sentence pauses aren't cut off (max 9s per turn)
-      if ((level < -30 && silenceMs >= 1350) || speechDurationMs >= 9000) {
+      // Reply immediately after 0.75s pause (max 8s per turn)
+      if ((level < -30 && silenceMs >= 750) || speechDurationMs >= 8000) {
         isFinishingRef.current = true;
         finishListeningRef.current();
       }
@@ -237,18 +237,18 @@ export function useVoice() {
     setStatusMessage('Replying immediately...');
 
     try {
-      // Guarantee at least 1.5s of recording before calling stop() so Android MPEG4Writer
-      // always flushes AAC frames and writes the moov atom cleanly.
+      // Guarantee at least 0.9s of recording before calling stop() so Android MPEG4Writer
+      // flushes AAC frames cleanly without adding unnecessary wait time.
       const elapsedSinceStart = Date.now() - recordingStartTimestampRef.current;
-      if (elapsedSinceStart > 0 && elapsedSinceStart < 1500) {
+      if (elapsedSinceStart > 0 && elapsedSinceStart < 900) {
         await new Promise((resolve) =>
-          setTimeout(resolve, 1500 - elapsedSinceStart)
+          setTimeout(resolve, 900 - elapsedSinceStart)
         );
       }
 
       const stopResult = await audioRecorder.stop();
-      // Wait 120ms so Android MediaRecorder flushes the MPEG-4 moov atom to disk
-      await new Promise((resolve) => setTimeout(resolve, 120));
+      // Wait 60ms so Android MediaRecorder flushes the MPEG-4 moov atom to disk
+      await new Promise((resolve) => setTimeout(resolve, 60));
       const recordedUri =
         (stopResult as { url?: string } | undefined)?.url || audioRecorder.uri;
 

@@ -36,7 +36,6 @@ export default function VoiceAssistantScreen() {
     startListening,
     handlePrimaryMicPress,
     cancelRecording,
-    stopSpeaking,
   } = useVoice();
 
   const startListeningFocusRef = useRef(startListening);
@@ -169,41 +168,6 @@ export default function VoiceAssistantScreen() {
           <Text style={styles.screenMainTitle}>AI Voice Recognition</Text>
           <Text style={styles.screenSubStatus}>{statusMessage}</Text>
 
-          {/* 5 Agent Voices Quick Glass Strip */}
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.voicesStrip}
-          >
-            {AppConfig.voicePersonas.map((persona) => {
-              const selected = voiceSettings.selectedVoiceId === persona.id;
-              return (
-                <Pressable
-                  key={persona.id}
-                  onPress={() => handleSelectPersona(persona, true)}
-                  style={[
-                    styles.voiceGlassPill,
-                    selected && styles.voiceGlassPillSelected,
-                  ]}
-                >
-                  <Feather
-                    name={selected ? 'volume-2' : 'mic'}
-                    size={12}
-                    color={selected ? Colors.primary : Colors.textSecondary}
-                  />
-                  <Text
-                    style={[
-                      styles.voiceGlassPillName,
-                      selected && styles.voiceGlassPillNameSelected,
-                    ]}
-                  >
-                    {persona.shortName}
-                  </Text>
-                </Pressable>
-              );
-            })}
-          </ScrollView>
-
           {/* Live Memory Learned Glass Toast */}
           {lastMemoryNotice ? (
             <View style={styles.memoryLearnedPill}>
@@ -306,67 +270,6 @@ export default function VoiceAssistantScreen() {
                     `${activePersona.name} · 0.7s instant silence reply`}
                 </Text>
               </View>
-            </Pressable>
-          </View>
-
-          {/* Bottom 3-Button Floating Glass Control Dock (Matching Mockup: [ AI ] [ 🎙️ ] [ ✕ ]) */}
-          <View style={styles.bottomGlassDock}>
-            <Pressable
-              onPress={() => router.push('/(tabs)/chat')}
-              style={({ pressed }) => [
-                styles.dockSideGlassCircle,
-                pressed && styles.pressed,
-              ]}
-              accessibilityRole="button"
-              accessibilityLabel="Switch to Smart Chat"
-            >
-              <Feather
-                name="message-circle"
-                size={19}
-                color={Colors.textPrimary}
-              />
-            </Pressable>
-
-            <Pressable
-              onPress={handlePrimaryMicPress}
-              style={({ pressed }) => [
-                styles.dockCenterMicOrb,
-                interactionState === 'listening' &&
-                  styles.dockCenterMicOrbActive,
-                pressed && styles.pressed,
-              ]}
-              accessibilityRole="button"
-              accessibilityLabel="Start or finish speaking immediately"
-            >
-              <Feather
-                name={
-                  interactionState === 'listening'
-                    ? 'check'
-                    : interactionState === 'speaking'
-                    ? 'volume-2'
-                    : 'mic'
-                }
-                size={24}
-                color={
-                  interactionState === 'listening'
-                    ? Colors.textInverse
-                    : Colors.textPrimary
-                }
-              />
-            </Pressable>
-
-            <Pressable
-              onPress={
-                interactionState === 'speaking' ? stopSpeaking : cancelRecording
-              }
-              style={({ pressed }) => [
-                styles.dockSideGlassCircle,
-                pressed && styles.pressed,
-              ]}
-              accessibilityRole="button"
-              accessibilityLabel="Cancel recording or stop speaking"
-            >
-              <Feather name="x" size={20} color={Colors.textPrimary} />
             </Pressable>
           </View>
         </ScrollView>
