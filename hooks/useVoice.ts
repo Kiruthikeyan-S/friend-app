@@ -26,6 +26,10 @@ const METERING_RECORDING_OPTIONS = {
   sampleRate: 44100,
   bitRate: 128000,
   isMeteringEnabled: true,
+  android: {
+    ...RecordingPresets.HIGH_QUALITY.android,
+    audioSource: 'voice_recognition' as const,
+  },
 };
 
 export function useVoice() {

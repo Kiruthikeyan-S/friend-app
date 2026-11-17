@@ -202,7 +202,12 @@ export const VoiceService = {
     } = {}
   ) {
     Speech.stop();
-    const cleanText = text.replace(/[*#_`~]/g, '').trim();
+    const cleanText = text
+      .replace(/https?:\/\/\S+/g, '')
+      .replace(/[*#_`~[\]()]/g, ' ')
+      .replace(/\s*—\s*/g, ', ')
+      .replace(/\s+/g, ' ')
+      .trim();
     if (!cleanText) {
       options.onDone?.();
       return;
@@ -215,6 +220,9 @@ export const VoiceService = {
 
     const targetPitch = options.pitch ?? resolved.pitch;
     const targetRate = options.rate ?? resolved.rate;
+    // Clamp pitch and rate to a smooth, natural human range (prevents robotic/choppy TTS)
+    const smoothPitch = Math.max(0.86, Math.min(1.14, targetPitch));
+    const smoothRate = Math.max(0.86, Math.min(1.15, targetRate));
     // On Android, SpeechModule.kt uses Locale.Builder().setLanguage(it).build() which requires
     // a 2-letter ISO 639 code ('en', 'hi', 'es', 'fr'), and Android getVoices() includes uninstalled
     // network voices that fail if selected via `voice`.
@@ -225,15 +233,15 @@ export const VoiceService = {
     Speech.speak(cleanText, {
       voice: Platform.OS === 'android' ? undefined : resolved.voiceIdentifier,
       language: Platform.OS === 'android' ? androidSafeLang : resolved.language,
-      pitch: targetPitch,
-      rate: targetRate,
+      pitch: smoothPitch,
+      rate: smoothRate,
       onDone: options.onDone,
       onStopped: options.onStopped,
       onError: () => {
         // Retry once with default system voice if custom voice/locale failed
         Speech.speak(cleanText, {
-          pitch: targetPitch,
-          rate: targetRate,
+          pitch: smoothPitch,
+          rate: smoothRate,
           onDone: options.onDone,
           onStopped: options.onStopped,
           onError: options.onError,

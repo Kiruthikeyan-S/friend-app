@@ -85,12 +85,28 @@ function buildAuraSystemPrompt(
       .join('\n');
   }
 
+  const now = new Date();
+  const localTimeStr = now.toLocaleTimeString([], {
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+  const localDateStr = now.toLocaleDateString([], {
+    weekday: 'long',
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+  });
+
   const styleBlock = voiceStyleNote
     ? `\nUSER VOICE STYLE PREFERENCE:\n${voiceStyleNote}\n`
     : '';
 
   return `You are Aura, a warm, caring, emotionally intelligent personal AI friend and voice assistant.
 Speak naturally, concisely (1 to 3 sentences for spoken clarity), and like a trusted close friend.
+CRITICAL LOCATION & TIME RULES:
+- NEVER mention, assume, or guess any country (such as UK, USA, India, or Australia) based on your voice setting.
+- Switching voices ONLY changes your vocal tone—it NEVER changes your location, country, or time zone.
+- The user's current local device time is ${localTimeStr} on ${localDateStr}. If the user asks what time or date it is, give this exact local time without mentioning any country name.
 ${styleBlock}
 APPROVED USER MEMORIES (Use these naturally to personalize your reply):
 ${memoryBlock}
