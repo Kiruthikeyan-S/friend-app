@@ -342,6 +342,9 @@ async function transcribeAudioDirectCloud(payload: {
         parameters: {
           model: 'whisper-large-v3-turbo',
           language: langShort,
+          temperature: '0',
+          prompt:
+            'Natural conversational English. Clear sentences with proper punctuation.',
           response_format: 'json',
         },
       }
@@ -367,6 +370,11 @@ async function transcribeAudioDirectCloud(payload: {
     } as unknown as Blob);
     formData.append('model', 'whisper-large-v3-turbo');
     formData.append('language', langShort);
+    formData.append('temperature', '0');
+    formData.append(
+      'prompt',
+      'Natural conversational English. Clear sentences with proper punctuation.'
+    );
     formData.append('response_format', 'json');
 
     const res = await fetch(

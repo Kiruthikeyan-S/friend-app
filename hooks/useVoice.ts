@@ -23,8 +23,8 @@ export type VoiceInteractionState = 'idle' | 'listening' | 'processing' | 'speak
 const METERING_RECORDING_OPTIONS = {
   ...RecordingPresets.HIGH_QUALITY,
   numberOfChannels: 1,
-  sampleRate: 44100,
-  bitRate: 128000,
+  sampleRate: 16000,
+  bitRate: 64000,
   isMeteringEnabled: true,
   android: {
     ...RecordingPresets.HIGH_QUALITY.android,
@@ -103,24 +103,24 @@ export function useVoice() {
     }
 
     // Android MediaRecorder metering: 20*log10(amp/32767).
-    // Silence/quiet room is < -28 dB; human voice speaking is > -25 dB.
-    if (level > -25) {
+    // Quiet room is < -32 dB; normal conversational speech is > -28 dB.
+    if (level > -28) {
       if (!hasDetectedSpeechRef.current) {
         hasDetectedSpeechRef.current = true;
         firstSpeechTimestampRef.current = now;
         setStatusMessage(
-          "Hearing you... Keep speaking, I'll reply as soon as you pause!"
+          "Hearing you... Keep speaking, I'll reply when you finish!"
         );
       }
       lastSpeechTimestampRef.current = now;
     }
 
-    if (hasDetectedSpeechRef.current && elapsedMs >= 1500) {
+    if (hasDetectedSpeechRef.current && elapsedMs >= 1600) {
       const silenceMs = now - lastSpeechTimestampRef.current;
       const speechDurationMs = now - firstSpeechTimestampRef.current;
 
-      // User spoke and paused for 0.8s, OR spoke for 3.6s continuously in a noisy room
-      if ((level < -26 && silenceMs >= 800) || speechDurationMs >= 3600) {
+      // Wait 1.35s of silence so natural mid-sentence pauses aren't cut off (max 9s per turn)
+      if ((level < -30 && silenceMs >= 1350) || speechDurationMs >= 9000) {
         isFinishingRef.current = true;
         finishListeningRef.current();
       }

@@ -88,6 +88,8 @@ class VoiceService:
             model=self.stt_model,
             file=file_tuple,
             language=lang_short if lang_short else "en",
+            temperature=0.0,
+            prompt="Natural conversational English. Clear sentences with proper punctuation.",
             response_format="json",
         )
         text = str(getattr(transcription, "text", "") or "").strip()
