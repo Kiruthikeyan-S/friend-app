@@ -50,6 +50,14 @@
         {
           "microphonePermission": "Allow Aura to access your microphone for voice conversations."
         }
+      ],
+      [
+        "expo-font",
+        {
+          "fonts": [
+            "./node_modules/@expo/vector-icons/build/vendor/react-native-vector-icons/Fonts/Feather.ttf"
+          ]
+        }
       ]
     ],
     "experiments": {
