@@ -184,7 +184,7 @@ async function generateDirectCloudReply(
   ];
 
   let rawContent = '';
-  let usedModel = CLOUD_MODELS[0];
+  let usedModel: string = CLOUD_MODELS[0];
   let lastError: unknown = null;
 
   for (const candidateModel of CLOUD_MODELS) {
