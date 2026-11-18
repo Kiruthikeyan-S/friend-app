@@ -53,7 +53,9 @@ export default function ChatScreen() {
   } = useChat();
 
   const [historyModalVisible, setHistoryModalVisible] = useState(false);
+  const [showScrollButton, setShowScrollButton] = useState(false);
   const flatListRef = useRef<FlatList<ChatMessage>>(null);
+  const prevMsgCountRef = useRef<number>(messages.length);
 
   useFocusEffect(
     useCallback(() => {
@@ -62,16 +64,28 @@ export default function ChatScreen() {
     }, [])
   );
 
+  // Only scroll to bottom when a new message is actually added (prevents jumpiness while typing)
   useEffect(() => {
-    const showSub = Keyboard.addListener('keyboardDidShow', () => {
+    if (messages.length > prevMsgCountRef.current) {
       setTimeout(() => {
         flatListRef.current?.scrollToEnd({ animated: true });
-      }, 100);
+      }, 60);
+    }
+    prevMsgCountRef.current = messages.length;
+  }, [messages.length]);
+
+  useEffect(() => {
+    const showSub = Keyboard.addListener('keyboardDidShow', () => {
+      if (!showScrollButton) {
+        setTimeout(() => {
+          flatListRef.current?.scrollToEnd({ animated: true });
+        }, 120);
+      }
     });
     return () => {
       showSub.remove();
     };
-  }, []);
+  }, [showScrollButton]);
 
   return (
     <GlassBackground>
@@ -131,7 +145,7 @@ export default function ChatScreen() {
               accessibilityLabel="Open chat history and new chat menu"
             >
               <Feather
-                name="more-vertical"
+                name="clock"
                 size={18}
                 color={Colors.textPrimary}
               />
@@ -209,24 +223,28 @@ export default function ChatScreen() {
           ) : null}
 
           {/* Chat Message List */}
-          <FlatList
-            ref={flatListRef}
-            data={messages}
-            keyExtractor={(item) => item.id}
-            contentContainerStyle={styles.listContent}
-            showsVerticalScrollIndicator={false}
-            keyboardShouldPersistTaps="handled"
-            initialNumToRender={14}
-            maxToRenderPerBatch={10}
-            windowSize={7}
-            removeClippedSubviews={Platform.OS === 'android'}
-            onContentSizeChange={() =>
-              flatListRef.current?.scrollToEnd({ animated: true })
-            }
-            onLayout={() =>
-              flatListRef.current?.scrollToEnd({ animated: true })
-            }
-            ListHeaderComponent={
+          <View style={styles.listWrapper}>
+            <FlatList
+              ref={flatListRef}
+              data={messages}
+              keyExtractor={(item) => item.id}
+              contentContainerStyle={styles.listContent}
+              showsVerticalScrollIndicator={false}
+              keyboardShouldPersistTaps="handled"
+              initialNumToRender={14}
+              maxToRenderPerBatch={10}
+              windowSize={7}
+              removeClippedSubviews={Platform.OS === 'android'}
+              scrollEventThrottle={100}
+              onScroll={(e) => {
+                const { contentOffset, contentSize, layoutMeasurement } =
+                  e.nativeEvent;
+                const distanceFromBottom =
+                  contentSize.height -
+                  (contentOffset.y + layoutMeasurement.height);
+                setShowScrollButton(distanceFromBottom > 120);
+              }}
+              ListHeaderComponent={
               chatMode === 'live' && messages.length <= 1 ? (
                 <View style={styles.starterContainer}>
                   <View style={styles.starterTopRow}>
@@ -271,6 +289,28 @@ export default function ChatScreen() {
             )}
             ListFooterComponent={isTyping ? <LoadingIndicator /> : undefined}
           />
+
+            {showScrollButton ? (
+              <Pressable
+                onPress={() => {
+                  flatListRef.current?.scrollToEnd({ animated: true });
+                  setShowScrollButton(false);
+                }}
+                style={({ pressed }) => [
+                  styles.scrollToBottomBtn,
+                  pressed && styles.pressed,
+                ]}
+                accessibilityRole="button"
+                accessibilityLabel="Scroll to latest message"
+              >
+                <Feather
+                  name="chevron-down"
+                  size={20}
+                  color={Colors.primary}
+                />
+              </Pressable>
+            ) : null}
+          </View>
 
           {/* Floating Glass Chat Input Bar */}
           <ChatInput
@@ -687,6 +727,28 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '700',
     color: Colors.textInverse,
+  },
+  listWrapper: {
+    flex: 1,
+    position: 'relative',
+  },
+  scrollToBottomBtn: {
+    position: 'absolute',
+    right: 18,
+    bottom: 14,
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: 'rgba(255, 255, 255, 0.92)',
+    borderWidth: 1.5,
+    borderColor: Colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#9D7BB0',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 10,
+    elevation: 5,
   },
   pressed: {
     opacity: 0.84,

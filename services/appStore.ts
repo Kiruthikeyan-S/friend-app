@@ -17,9 +17,11 @@ import {
 } from '@/types/memory';
 import { UserProfile, VoiceSettings } from '@/types/user';
 
+const INITIAL_SESSION_ID = `live-session-${Date.now()}`;
+
 const INITIAL_GREETING_MESSAGE: ChatMessage = {
-  id: 'live-welcome-msg-1',
-  conversationId: 'live-session-1',
+  id: `live-welcome-msg-${Date.now()}`,
+  conversationId: INITIAL_SESSION_ID,
   role: 'assistant',
   content:
     "Hey! I'm Aura, your personal AI friend. Tell me what's on your mind—or tap the mic to talk with me live!",
@@ -161,11 +163,11 @@ interface AppState {
 
 let state: AppState = {
   chatMode: 'live',
-  activeLiveConversationId: 'live-session-1',
+  activeLiveConversationId: INITIAL_SESSION_ID,
   activePreviewConversationId: 'preview-morning-routine',
   liveSessions: [
     {
-      id: 'live-session-1',
+      id: INITIAL_SESSION_ID,
       title: 'Current Conversation',
       previewText: INITIAL_GREETING_MESSAGE.content,
       updatedAt: 'Just now',
@@ -174,7 +176,7 @@ let state: AppState = {
     },
   ],
   liveMessagesBySession: {
-    'live-session-1': [INITIAL_GREETING_MESSAGE],
+    [INITIAL_SESSION_ID]: [INITIAL_GREETING_MESSAGE],
   },
   memories: INITIAL_MEMORIES,
   pendingMemoryCandidates: [],
@@ -645,6 +647,8 @@ export const AppStore = {
       const sessions = [...state.liveSessions];
       for (const [sessionId, msgs] of Object.entries(grouped)) {
         if (msgs.length === 0) continue;
+        // Keep the brand-new startup chat title clean until the user sends a message
+        if (sessionId === INITIAL_SESSION_ID && msgs.length <= 1) continue;
         const last = msgs[msgs.length - 1];
         const firstUser = msgs.find((m) => m.role === 'user');
         const idx = sessions.findIndex((s) => s.id === sessionId);
@@ -653,7 +657,7 @@ export const AppStore = {
           title: firstUser
             ? firstUser.content.slice(0, 34) +
               (firstUser.content.length > 34 ? '...' : '')
-            : 'Synced Conversation',
+            : 'Previous Chat',
           previewText: last.content,
           updatedAt: last.createdAt,
           messageCount: msgs.length,
@@ -662,7 +666,7 @@ export const AppStore = {
         if (idx >= 0) {
           sessions[idx] = sessionObj;
         } else {
-          sessions.unshift(sessionObj);
+          sessions.push(sessionObj);
         }
       }
 

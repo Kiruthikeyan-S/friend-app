@@ -61,12 +61,23 @@ function pickDeviceVoiceForPersona(
     };
   }
 
+  // Filter out uninstalled Android '-network' voices; prefer local offline voices
+  const availableVoices =
+    Platform.OS === 'android'
+      ? cachedSystemVoices.filter(
+          (v) => !String(v.identifier || '').toLowerCase().includes('-network')
+        )
+      : cachedSystemVoices;
+
+  const usableVoices =
+    availableVoices.length > 0 ? availableVoices : cachedSystemVoices;
+
   // Filter voices matching the language prefix (e.g. 'en')
   const langPrefix = targetLang.split('-')[0].toLowerCase();
-  const exactLocaleVoices = cachedSystemVoices.filter(
+  const exactLocaleVoices = usableVoices.filter(
     (v) => v.language?.toLowerCase() === targetLang.toLowerCase()
   );
-  const familyVoices = cachedSystemVoices.filter((v) =>
+  const familyVoices = usableVoices.filter((v) =>
     v.language?.toLowerCase().startsWith(langPrefix)
   );
 
@@ -75,7 +86,7 @@ function pickDeviceVoiceForPersona(
       ? exactLocaleVoices
       : familyVoices.length > 0
       ? familyVoices
-      : cachedSystemVoices;
+      : usableVoices;
 
   // Try to match gender keywords in voice name/identifier if available on Android/iOS
   const maleKeywords = ['male', 'david', 'mark', 'james', 'daniel', 'rishi', 'arjun', 'iom', 'tpd', 'guy'];
@@ -220,26 +231,26 @@ export const VoiceService = {
 
     const targetPitch = options.pitch ?? resolved.pitch;
     const targetRate = options.rate ?? resolved.rate;
-    // Clamp pitch and rate to a smooth, natural human range (prevents robotic/choppy TTS)
-    const smoothPitch = Math.max(0.86, Math.min(1.14, targetPitch));
-    const smoothRate = Math.max(0.86, Math.min(1.15, targetRate));
+    // Allow clearly distinct vocal pitch & speed per persona (0.70..1.32 pitch)
+    const smoothPitch = Math.max(0.70, Math.min(1.32, targetPitch));
+    const smoothRate = Math.max(0.84, Math.min(1.16, targetRate));
     // On Android, SpeechModule.kt uses Locale.Builder().setLanguage(it).build() which requires
-    // a 2-letter ISO 639 code ('en', 'hi', 'es', 'fr'), and Android getVoices() includes uninstalled
-    // network voices that fail if selected via `voice`.
+    // a 2-letter ISO 639 code ('en', 'hi', 'es', 'fr').
     const androidSafeLang = (options.language || resolved.language || 'en')
       .split('-')[0]
       .toLowerCase();
 
     Speech.speak(cleanText, {
-      voice: Platform.OS === 'android' ? undefined : resolved.voiceIdentifier,
+      voice: resolved.voiceIdentifier,
       language: Platform.OS === 'android' ? androidSafeLang : resolved.language,
       pitch: smoothPitch,
       rate: smoothRate,
       onDone: options.onDone,
       onStopped: options.onStopped,
       onError: () => {
-        // Retry once with default system voice if custom voice/locale failed
+        // Fallback with system default voice + distinct pitch/rate if local voice ID fails
         Speech.speak(cleanText, {
+          language: Platform.OS === 'android' ? androidSafeLang : resolved.language,
           pitch: smoothPitch,
           rate: smoothRate,
           onDone: options.onDone,
