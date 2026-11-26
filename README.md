@@ -1,13 +1,15 @@
-# Aura – Personal AI Voice Assistant (`friend-app`)
+# Anytime Anywhere Chat — Aura Personal AI Voice Assistant (`friend-app`)
 
-A modern, Android-first **Personal AI Voice Assistant** built with **React Native (Expo + TypeScript + Expo Router)** and a **Python FastAPI** backend.
+A modern, Android-first **Personal AI Voice & Text Assistant** built with **React Native (Expo SDK 58 + TypeScript + Expo Router)**, **Supabase PostgreSQL**, and a **Python FastAPI** backend (with automatic **HTTPS Cloud AI** fallback so standalone `.apk` builds work anywhere).
 
 ### Key Highlights
-- **5 Distinct AI Agent Voices**: Switch instantly between **Clara** (*Warm · US*), **Julian** (*Upbeat · US*), **Maya** (*Soothing · UK*), **Arjun** (*Grounded · IN*), and **Nova** (*Playful · AU*) with live voice sample previews and custom pitch/speed/personality training.
-- **Immediate Voice Response (`~0.5s`)**: Real-time microphone audio metering & silence detection (`0.7s` pause auto-send) paired with persistent `OpenAI` SDK connection pooling (`Ollama Cloud deepseek-v4.1-flash` + `Groq openai/gpt-oss-20b` & `whisper-large-v3-turbo`).
-- **Continuous Hands-Free Conversation Loop**: Talk back and forth naturally without tapping after every sentence.
-- **Consent-First Personal Memory**: Automatically extracts personal facts (`Profile`, `Preferences`, `Work`, `Interests`) from speech and chat with explicit user permission and category controls.
-- **Clean Light-Mode UI**: Android keyboard-aware layout where input bars lift smoothly above the keyboard.
+- **Pastel Iridescent Glassmorphism UI**: Blush-lavender frosted glass interface featuring a 3D iridescent glass orb, Smart Hub dashboard, custom glassmorphic app icon, and embedded `Feather` icon font.
+- **Separated Text & Voice Experiences**:
+  - **Smart Chat (Text Only)**: Fast, silent text replies with a fresh conversation on every launch, a **History (`clock`)** menu for past chats, and a floating **Scroll-to-Bottom** button.
+  - **AI Voice Recognition (Voice-to-Voice)**: Auto-listens on focus using `16 kHz` Android `voice_recognition` noise suppression, detects `0.75s` natural pauses, transcribes via `whisper-large-v3-turbo`, and speaks replies immediately.
+- **5 Distinct Country-Neutral Agent Voices**: Switch between **Clara** (*Warm · Smooth*), **Julian** (*Deep · Clear*), **Maya** (*Soft · Calm*), **Arjun** (*Rich · Steady*), and **Nova** (*Bright · Lively*) using local device voices with distinct pitch/speed profiles and zero country/timezone bias.
+- **Per-Device Private Database & Supabase Cloud Sync**: Each phone generates its own unique persistent `deviceId` (`services/device.ts`) and local private database snapshot, strictly isolating `memories` and `messages` per device in Supabase (`services/supabase.ts`).
+- **Standalone APK Ready**: Direct `HTTPS` Groq AI (`openai/gpt-oss-20b` / `openai/gpt-oss-120b` / `qwen/qwen3.8-27b` + `whisper-large-v3-turbo`) works on any Wi-Fi or mobile data even when the local PC server is off.
 
 ---
 
@@ -31,14 +33,20 @@ app/
 components/
   ChatBubble.tsx
   ChatInput.tsx
-  VoiceButton.tsx
-  MemoryCard.tsx
+  GlassBackground.tsx
   LoadingIndicator.tsx
+  MemoryCard.tsx
+  VoiceButton.tsx
+
+plugins/
+  withCleartextTraffic.js
 
 services/
   api.ts
   appStore.ts
   auth.ts
+  device.ts
+  supabase.ts
   voice.ts
 
 hooks/
@@ -69,13 +77,19 @@ backend/
       conversation_service.py
   requirements.txt
   .env.example
+
+supabase_setup.sql
+eas.json
 ```
 
 ---
 
 ## 2. Setup & Running Instructions
 
-### A. Start the FastAPI Backend
+### A. Supabase Database Setup
+Run [`supabase_setup.sql`](supabase_setup.sql) in your Supabase **SQL Editor** to create `public.memories` and `public.messages` with Row Level Security policies.
+
+### B. Start the FastAPI Backend (Optional for Local Dev)
 
 ```powershell
 cd backend
@@ -85,18 +99,18 @@ python -m uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 ```
 
 Verify the backend endpoints:
-- `GET http://localhost:8000/` – Basic API status & Phase 1–10 service readiness
+- `GET http://localhost:8000/` – Basic API status
 - `GET http://localhost:8000/health` – Health check endpoint
 - `GET http://localhost:8000/docs` – Interactive OpenAPI / Swagger UI
 
-### B. Start the Mobile Application (Expo)
+### C. Start the Mobile Application (Expo)
 
 From the root directory (`f:\Ai -fri`):
 
 ```powershell
 npm install
 npm run typecheck
-npx expo start
+npx expo start -c
 ```
 
 ---
@@ -105,21 +119,13 @@ npx expo start
 
 1. Install **Expo Go** from the Google Play Store on your Android phone.
 2. Connect your Android phone and your development computer to the **same Wi-Fi network**.
-3. Find your computer's local LAN IPv4 address (`ipconfig` on Windows, e.g., `192.168.1.105`) and set it in `.env`:
+3. Set your PC's local LAN IPv4 address (`ipconfig` on Windows) in `.env`:
    ```env
-   EXPO_PUBLIC_API_URL=http://192.168.1.105:8000
+   EXPO_PUBLIC_API_URL=http://192.168.88.4:8000
+   EXPO_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
+   EXPO_PUBLIC_SUPABASE_ANON_KEY=your-publishable-key
    ```
-4. Start the FastAPI server bound to `0.0.0.0`:
-   ```powershell
-   cd backend
-   python -m uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
-   ```
-5. Start Expo in the project root:
-   ```powershell
-   npx expo start
-   ```
-6. Open **Expo Go** on your Android phone and scan the QR code displayed in the terminal.
-   *(If your Wi-Fi blocks local peer connections, run `npx expo start --tunnel`.)*
+4. Start Expo (`npx expo start -c`) and scan the QR code with **Expo Go**.
 
 ---
 
