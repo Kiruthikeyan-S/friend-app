@@ -5,445 +5,219 @@ import {
   Pressable,
   ScrollView,
   StyleSheet,
-  Switch,
   Text,
   TextInput,
   View,
 } from 'react-native';
+import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import { GlassBackground } from '@/components/GlassBackground';
-import { MemoryCard } from '@/components/MemoryCard';
 import { Colors, Radius, Spacing } from '@/constants/colors';
-import { ApiService } from '@/services/api';
 import { AppStore, useAppStore } from '@/services/appStore';
-import { MemoryCategory, MemoryItem } from '@/types/memory';
+import { MemoryItem } from '@/types/memory';
 
-const CATEGORIES: MemoryCategory[] = [
-  'Profile',
-  'Preferences',
-  'Work',
-  'Interests',
-];
+export default function MemoryAndHistoryScreen() {
+  const router = useRouter();
+  const { memories, liveSessions } = useAppStore();
 
-export default function MemoryManagementScreen() {
-  const { memories, memoryPermissions } = useAppStore();
-  const [selectedFilter, setSelectedFilter] = useState<'All' | MemoryCategory>(
-    'All'
-  );
-  const [permissionsExpanded, setPermissionsExpanded] = useState(false);
-
-  // Modal state for Add or Edit Memory
   const [editorVisible, setEditorVisible] = useState(false);
   const [editingItem, setEditingItem] = useState<MemoryItem | null>(null);
-  const [draftCategory, setDraftCategory] = useState<MemoryCategory>('Profile');
   const [draftTitle, setDraftTitle] = useState('');
   const [draftContent, setDraftContent] = useState('');
-  const [explicitConsentChecked, setExplicitConsentChecked] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
-
-  const filteredMemories =
-    selectedFilter === 'All'
-      ? memories
-      : memories.filter((item) => item.category === selectedFilter);
 
   const openAddModal = () => {
     setEditingItem(null);
-    setDraftCategory(selectedFilter === 'All' ? 'Profile' : selectedFilter);
     setDraftTitle('');
     setDraftContent('');
-    setExplicitConsentChecked(false);
     setFormError(null);
     setEditorVisible(true);
   };
 
   const openEditModal = (item: MemoryItem) => {
     setEditingItem(item);
-    setDraftCategory(item.category);
     setDraftTitle(item.title);
     setDraftContent(item.content);
-    // Require re-affirming explicit user approval on edit
-    setExplicitConsentChecked(true);
     setFormError(null);
     setEditorVisible(true);
   };
 
-  const handleSaveMemory = async () => {
+  const handleSaveMemory = () => {
     if (!draftTitle.trim() || !draftContent.trim()) {
-      setFormError('Please enter both a short title and the memory detail.');
+      setFormError('Enter both a title and detail.');
       return;
     }
 
-    if (!explicitConsentChecked) {
-      setFormError(
-        'Explicit user approval is required. Please check the consent confirmation box below.'
-      );
-      return;
-    }
-
-    try {
-      // Optional backend validation call (Phase 7 foundation)
-      await ApiService.validateMemoryWithBackend({
-        category: draftCategory,
-        title: draftTitle.trim(),
-        content: draftContent.trim(),
-        explicit_user_consent: explicitConsentChecked,
-      }).catch(() => {
-        // Offline / local Phase 1 validation still enforced by AppStore
+    if (editingItem) {
+      AppStore.updateMemory(editingItem.id, {
+        category: editingItem.category,
+        title: draftTitle,
+        content: draftContent,
+        explicitConsentGranted: true,
       });
-
-      if (editingItem) {
-        AppStore.updateMemory(editingItem.id, {
-          category: draftCategory,
-          title: draftTitle,
-          content: draftContent,
-          explicitConsentGranted: explicitConsentChecked,
-        });
-      } else {
-        AppStore.addApprovedMemory({
-          category: draftCategory,
-          title: draftTitle,
-          content: draftContent,
-          explicitConsentGranted: explicitConsentChecked,
-        });
-      }
-
-      setEditorVisible(false);
-    } catch (err) {
-      setFormError(
-        err instanceof Error ? err.message : 'Unable to save memory.'
-      );
+    } else {
+      AppStore.addApprovedMemory({
+        category: 'Profile',
+        title: draftTitle,
+        content: draftContent,
+        explicitConsentGranted: true,
+      });
     }
+    setEditorVisible(false);
   };
+
+  const historySessions = liveSessions.filter((s) => s.messageCount > 1);
 
   return (
     <GlassBackground>
       <SafeAreaView style={styles.safeArea} edges={['top']}>
-      {/* Top Bar */}
-      <View style={styles.header}>
-        <View>
-          <Text style={styles.headerTitle}>Personal Memory</Text>
-          <Text style={styles.headerSubtitle}>
-            Consent-based only · Never saved automatically
-          </Text>
-        </View>
-
-        <Pressable
-          onPress={openAddModal}
-          style={({ pressed }) => [styles.addButton, pressed && styles.pressed]}
-          accessibilityRole="button"
-          accessibilityLabel="Add approved memory"
-        >
-          <Feather name="plus" size={16} color={Colors.textInverse} />
-          <Text style={styles.addButtonText}>Add Memory</Text>
-        </Pressable>
-      </View>
-
-      <ScrollView
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-      >
-        {/* Strict Consent Guarantee Banner */}
-        <View style={styles.consentBanner}>
-          <View style={styles.consentBannerLeft}>
-            <View style={styles.shieldCircle}>
-              <Feather name="shield" size={17} color={Colors.accent} />
-            </View>
-            <View style={styles.consentBannerTextCol}>
-              <Text style={styles.consentBannerTitle}>
-                Explicit User Consent Policy
-              </Text>
-              <Text style={styles.consentBannerSubtitle}>
-                Aura never saves personal details automatically. Every item here
-                was explicitly approved by you and backed up to Supabase.
-              </Text>
-            </View>
-          </View>
-
+        {/* Header */}
+        <View style={styles.header}>
+          <Text style={styles.headerTitle}>Memory & History</Text>
           <Pressable
-            onPress={() => setPermissionsExpanded((prev) => !prev)}
-            style={styles.permissionsToggleBtn}
+            onPress={openAddModal}
+            style={({ pressed }) => [styles.addButton, pressed && styles.pressed]}
+            accessibilityRole="button"
+            accessibilityLabel="Add memory"
           >
-            <Feather name="sliders" size={14} color={Colors.primary} />
-            <Text style={styles.permissionsToggleText}>
-              {permissionsExpanded ? 'Hide Memory Permissions' : 'Memory Permission Settings'}
-            </Text>
-            <Feather
-              name={permissionsExpanded ? 'chevron-up' : 'chevron-down'}
-              size={15}
-              color={Colors.primary}
-            />
+            <Feather name="plus" size={16} color={Colors.textInverse} />
+            <Text style={styles.addButtonText}>Add</Text>
           </Pressable>
-
-          {/* Expandable Memory Permission Settings */}
-          {permissionsExpanded ? (
-            <View style={styles.permissionsPanel}>
-              <View style={styles.permissionRow}>
-                <View style={styles.permissionTextCol}>
-                  <Text style={styles.permissionTitle}>
-                    Allow Memory Learning
-                  </Text>
-                  <Text style={styles.permissionDesc}>
-                    When disabled, no new personal memories can be added.
-                  </Text>
-                </View>
-                <Switch
-                  value={memoryPermissions.allowMemoryRequests}
-                  onValueChange={(val) =>
-                    AppStore.updateMemoryPermissions({
-                      allowMemoryRequests: val,
-                    })
-                  }
-                  trackColor={{ false: Colors.border, true: Colors.accent }}
-                />
-              </View>
-
-              <View style={styles.permissionRow}>
-                <View style={styles.permissionTextCol}>
-                  <Text style={styles.permissionTitle}>
-                    Auto-Save Spoken & Chat Memories
-                  </Text>
-                  <Text style={styles.permissionDesc}>
-                    Automatically remember personal facts you share when talking.
-                  </Text>
-                </View>
-                <Switch
-                  value={memoryPermissions.autoSaveSpokenMemories}
-                  onValueChange={(val) =>
-                    AppStore.updateMemoryPermissions({
-                      autoSaveSpokenMemories: val,
-                      requireExplicitConfirmationEveryTime: !val,
-                    })
-                  }
-                  trackColor={{ false: Colors.border, true: Colors.accent }}
-                />
-              </View>
-
-              <Text style={styles.categoryPermHeading}>
-                Allowed Memory Categories:
-              </Text>
-              <View style={styles.categoryPermGrid}>
-                {CATEGORIES.map((cat) => {
-                  const enabled = memoryPermissions.enabledCategories[cat];
-                  return (
-                    <Pressable
-                      key={cat}
-                      onPress={() => AppStore.toggleCategoryPermission(cat)}
-                      style={[
-                        styles.categoryPermChip,
-                        enabled && styles.categoryPermChipActive,
-                      ]}
-                    >
-                      <Feather
-                        name={enabled ? 'check-square' : 'square'}
-                        size={14}
-                        color={enabled ? Colors.primary : Colors.textMuted}
-                      />
-                      <Text
-                        style={[
-                          styles.categoryPermChipText,
-                          enabled && styles.categoryPermChipTextActive,
-                        ]}
-                      >
-                        {cat}
-                      </Text>
-                    </Pressable>
-                  );
-                })}
-              </View>
-            </View>
-          ) : null}
         </View>
 
-        {/* Category Filter Tabs */}
         <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.filterTabsRow}
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
         >
-          {(['All', ...CATEGORIES] as const).map((tab) => {
-            const active = selectedFilter === tab;
-            const count =
-              tab === 'All'
-                ? memories.length
-                : memories.filter((m) => m.category === tab).length;
-            return (
-              <Pressable
-                key={tab}
-                onPress={() => setSelectedFilter(tab)}
-                style={[styles.filterTab, active && styles.filterTabActive]}
-              >
-                <Text
-                  style={[
-                    styles.filterTabText,
-                    active && styles.filterTabTextActive,
+          {/* Section 1: Saved Memories */}
+          <Text style={styles.sectionHeading}>
+            Saved Memories ({memories.length})
+          </Text>
+          {memories.length === 0 ? (
+            <View style={styles.emptyCard}>
+              <Feather name="bookmark" size={24} color={Colors.textMuted} />
+              <Text style={styles.emptyText}>No saved memories yet.</Text>
+            </View>
+          ) : (
+            <View style={styles.listGap}>
+              {memories.map((item) => (
+                <View key={item.id} style={styles.glassCard}>
+                  <View style={styles.cardRow}>
+                    <View style={styles.cardTextCol}>
+                      <Text style={styles.cardTitle}>{item.title}</Text>
+                      <Text style={styles.cardBody}>{item.content}</Text>
+                    </View>
+                    <View style={styles.cardActions}>
+                      <Pressable
+                        onPress={() => openEditModal(item)}
+                        hitSlop={8}
+                        style={styles.iconCircle}
+                      >
+                        <Feather name="edit-2" size={14} color={Colors.primary} />
+                      </Pressable>
+                      <Pressable
+                        onPress={() => AppStore.deleteMemory(item.id)}
+                        hitSlop={8}
+                        style={styles.iconCircle}
+                      >
+                        <Feather name="trash-2" size={14} color={Colors.error} />
+                      </Pressable>
+                    </View>
+                  </View>
+                </View>
+              ))}
+            </View>
+          )}
+
+          {/* Section 2: Chat History */}
+          <Text style={[styles.sectionHeading, { marginTop: Spacing.xl }]}>
+            Chat History ({historySessions.length})
+          </Text>
+          {historySessions.length === 0 ? (
+            <View style={styles.emptyCard}>
+              <Feather name="clock" size={24} color={Colors.textMuted} />
+              <Text style={styles.emptyText}>No past conversations yet.</Text>
+            </View>
+          ) : (
+            <View style={styles.listGap}>
+              {historySessions.map((session) => (
+                <Pressable
+                  key={session.id}
+                  onPress={() => {
+                    AppStore.selectConversation(session.id, false);
+                    router.push('/(tabs)/chat');
+                  }}
+                  style={({ pressed }) => [
+                    styles.glassCard,
+                    pressed && styles.pressed,
                   ]}
                 >
-                  {tab} ({count})
-                </Text>
-              </Pressable>
-            );
-          })}
+                  <View style={styles.cardRow}>
+                    <View style={styles.historyIcon}>
+                      <Feather name="message-circle" size={15} color={Colors.primary} />
+                    </View>
+                    <View style={styles.cardTextCol}>
+                      <Text style={styles.cardTitle} numberOfLines={1}>
+                        {session.title}
+                      </Text>
+                      <Text style={styles.cardBody} numberOfLines={1}>
+                        {session.previewText}
+                      </Text>
+                    </View>
+                    <Feather name="chevron-right" size={17} color={Colors.textMuted} />
+                  </View>
+                </Pressable>
+              ))}
+            </View>
+          )}
         </ScrollView>
 
-        {/* Memory Cards or Empty State */}
-        {filteredMemories.length === 0 ? (
-          <View style={styles.emptyStateCard}>
-            <View style={styles.emptyIconCircle}>
-              <Feather name="bookmark" size={26} color={Colors.textMuted} />
-            </View>
-            <Text style={styles.emptyTitle}>No saved memories here yet</Text>
-            <Text style={styles.emptySubtitle}>
-              Aura only remembers personal details that you explicitly create
-              and approve. Tap below to add a memory with your consent.
-            </Text>
-            <Pressable
-              onPress={openAddModal}
-              style={({ pressed }) => [
-                styles.emptyActionBtn,
-                pressed && styles.pressed,
-              ]}
-            >
-              <Feather name="plus" size={16} color={Colors.primary} />
-              <Text style={styles.emptyActionBtnText}>
-                Add an Approved Memory
-              </Text>
-            </Pressable>
-          </View>
-        ) : (
-          filteredMemories.map((item) => (
-            <MemoryCard
-              key={item.id}
-              item={item}
-              onEdit={openEditModal}
-              onDelete={(id) => AppStore.deleteMemory(id)}
-            />
-          ))
-        )}
-      </ScrollView>
-
-      {/* Add / Edit Memory Modal with Mandatory Explicit User Consent */}
-      <Modal
-        visible={editorVisible}
-        animationType="slide"
-        transparent
-        onRequestClose={() => setEditorVisible(false)}
-      >
-        <KeyboardAvoidingView style={styles.modalBackdrop} behavior="padding">
-          <View style={styles.modalSheet}>
-            <ScrollView
-              showsVerticalScrollIndicator={false}
-              keyboardShouldPersistTaps="handled"
-            >
+        {/* Add / Edit Memory Modal */}
+        <Modal
+          visible={editorVisible}
+          animationType="slide"
+          transparent
+          onRequestClose={() => setEditorVisible(false)}
+        >
+          <KeyboardAvoidingView style={styles.modalBackdrop} behavior="padding">
+            <View style={styles.modalSheet}>
               <View style={styles.modalHeader}>
                 <Text style={styles.modalTitle}>
-                  {editingItem ? 'Edit Personal Memory' : 'Approve New Memory'}
+                  {editingItem ? 'Edit Memory' : 'Add Memory'}
                 </Text>
-                <Pressable
-                  onPress={() => setEditorVisible(false)}
-                  style={styles.closeBtn}
-                >
+                <Pressable onPress={() => setEditorVisible(false)}>
                   <Feather name="x" size={20} color={Colors.textPrimary} />
                 </Pressable>
               </View>
 
-              <Text style={styles.fieldLabel}>Category</Text>
-              <View style={styles.categoryPickerRow}>
-                {CATEGORIES.map((cat) => {
-                  const selected = draftCategory === cat;
-                  return (
-                    <Pressable
-                      key={cat}
-                      onPress={() => setDraftCategory(cat)}
-                      style={[
-                        styles.catOption,
-                        selected && styles.catOptionSelected,
-                      ]}
-                    >
-                      <Text
-                        style={[
-                          styles.catOptionText,
-                          selected && styles.catOptionTextSelected,
-                        ]}
-                      >
-                        {cat}
-                      </Text>
-                    </Pressable>
-                  );
-                })}
-              </View>
-
-              <Text style={styles.fieldLabel}>Memory Title</Text>
+              <Text style={styles.fieldLabel}>Title</Text>
               <TextInput
                 style={styles.textInput}
                 value={draftTitle}
                 onChangeText={setDraftTitle}
-                placeholder="e.g., Favorite Coffee Order"
+                placeholder="e.g., Name"
                 placeholderTextColor={Colors.textMuted}
               />
 
-              <Text style={styles.fieldLabel}>Saved Detail</Text>
+              <Text style={styles.fieldLabel}>Detail</Text>
               <TextInput
-                style={[styles.textInput, styles.textArea]}
+                style={[styles.textInput, { minHeight: 84, textAlignVertical: 'top' }]}
                 value={draftContent}
                 onChangeText={setDraftContent}
-                placeholder="Write the exact detail you want Aura to remember..."
+                placeholder="e.g., My name is Alex"
                 placeholderTextColor={Colors.textMuted}
                 multiline
               />
 
-              {/* Mandatory Explicit Consent Checkbox */}
-              <Pressable
-                onPress={() => setExplicitConsentChecked((prev) => !prev)}
-                style={[
-                  styles.consentCheckCard,
-                  explicitConsentChecked && styles.consentCheckCardActive,
-                ]}
-                accessibilityRole="checkbox"
-                accessibilityState={{ checked: explicitConsentChecked }}
-              >
-                <Feather
-                  name={explicitConsentChecked ? 'check-square' : 'square'}
-                  size={20}
-                  color={
-                    explicitConsentChecked ? Colors.accent : Colors.textSecondary
-                  }
-                />
-                <Text style={styles.consentCheckLabel}>
-                  I explicitly approve saving this personal information in my
-                  assistant memory.
-                </Text>
+              {formError ? <Text style={styles.errorText}>{formError}</Text> : null}
+
+              <Pressable onPress={handleSaveMemory} style={styles.saveBtn}>
+                <Text style={styles.saveBtnText}>Save</Text>
               </Pressable>
-
-              {formError ? (
-                <Text style={styles.errorText}>{formError}</Text>
-              ) : null}
-
-              <View style={styles.modalActionsRow}>
-                <Pressable
-                  onPress={() => setEditorVisible(false)}
-                  style={styles.modalCancelBtn}
-                >
-                  <Text style={styles.modalCancelBtnText}>Cancel</Text>
-                </Pressable>
-
-                <Pressable
-                  onPress={handleSaveMemory}
-                  style={({ pressed }) => [
-                    styles.modalSaveBtn,
-                    !explicitConsentChecked && styles.modalSaveBtnDisabled,
-                    pressed && styles.pressed,
-                  ]}
-                >
-                  <Text style={styles.modalSaveBtnText}>
-                    {editingItem ? 'Save Approved Changes' : 'Approve & Save'}
-                  </Text>
-                </Pressable>
-              </View>
-            </ScrollView>
-          </View>
-        </KeyboardAvoidingView>
-      </Modal>
+            </View>
+          </KeyboardAvoidingView>
+        </Modal>
       </SafeAreaView>
     </GlassBackground>
   );
@@ -457,21 +231,13 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: Spacing.lg,
+    paddingHorizontal: Spacing.xl,
     paddingVertical: Spacing.md,
-    backgroundColor: 'rgba(255, 255, 255, 0.72)',
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255, 255, 255, 0.94)',
   },
   headerTitle: {
-    fontSize: 19,
+    fontSize: 22,
     fontWeight: '700',
     color: Colors.textPrimary,
-  },
-  headerSubtitle: {
-    fontSize: 12,
-    color: Colors.textSecondary,
-    marginTop: 2,
   },
   addButton: {
     flexDirection: 'row',
@@ -483,196 +249,86 @@ const styles = StyleSheet.create({
     borderRadius: Radius.full,
   },
   addButtonText: {
-    fontSize: 13,
+    fontSize: 13.5,
     fontWeight: '700',
     color: Colors.textInverse,
   },
   scrollContent: {
-    paddingHorizontal: Spacing.lg,
-    paddingTop: Spacing.md,
+    paddingHorizontal: Spacing.xl,
     paddingBottom: Spacing.xxxl,
   },
-  consentBanner: {
-    backgroundColor: Colors.surface,
-    borderRadius: Radius.xl,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    padding: Spacing.lg,
-    marginBottom: Spacing.md,
+  sectionHeading: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: Colors.textSecondary,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginBottom: Spacing.sm,
   },
-  consentBannerLeft: {
+  listGap: {
+    gap: 10,
+  },
+  glassCard: {
+    backgroundColor: 'rgba(255, 255, 255, 0.80)',
+    borderRadius: Radius.lg,
+    borderWidth: 1.2,
+    borderColor: '#FFFFFF',
+    padding: 14,
+  },
+  cardRow: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: Spacing.md,
-  },
-  shieldCircle: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: Colors.accentSoft,
     alignItems: 'center',
-    justifyContent: 'center',
+    gap: 12,
   },
-  consentBannerTextCol: {
+  cardTextCol: {
     flex: 1,
   },
-  consentBannerTitle: {
-    fontSize: 14,
+  cardTitle: {
+    fontSize: 15,
     fontWeight: '700',
     color: Colors.textPrimary,
-    marginBottom: 2,
   },
-  consentBannerSubtitle: {
-    fontSize: 12,
-    lineHeight: 18,
+  cardBody: {
+    fontSize: 13.5,
     color: Colors.textSecondary,
+    marginTop: 2,
   },
-  permissionsToggleBtn: {
-    marginTop: Spacing.md,
-    paddingTop: Spacing.sm,
-    borderTopWidth: 1,
-    borderTopColor: Colors.divider,
+  cardActions: {
     flexDirection: 'row',
+    gap: 8,
+  },
+  iconCircle: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: 'rgba(255, 255, 255, 0.9)',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 6,
   },
-  permissionsToggleText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: Colors.primary,
-  },
-  permissionsPanel: {
-    marginTop: Spacing.md,
-    paddingTop: Spacing.md,
-    borderTopWidth: 1,
-    borderTopColor: Colors.divider,
-    gap: Spacing.sm,
-  },
-  permissionRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: Spacing.md,
-  },
-  permissionTextCol: {
-    flex: 1,
-  },
-  permissionTitle: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: Colors.textPrimary,
-  },
-  permissionDesc: {
-    fontSize: 12,
-    color: Colors.textSecondary,
-  },
-  categoryPermHeading: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: Colors.textSecondary,
-    marginTop: Spacing.xs,
-  },
-  categoryPermGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: Spacing.sm,
-  },
-  categoryPermChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: 12,
-    paddingVertical: 7,
-    borderRadius: Radius.md,
-    backgroundColor: Colors.surfaceSoft,
-    borderWidth: 1,
-    borderColor: Colors.border,
-  },
-  categoryPermChipActive: {
+  historyIcon: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
     backgroundColor: Colors.primarySoft,
-    borderColor: Colors.primary,
-  },
-  categoryPermChipText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: Colors.textSecondary,
-  },
-  categoryPermChipTextActive: {
-    color: Colors.primary,
-  },
-  filterTabsRow: {
-    gap: Spacing.sm,
-    paddingBottom: Spacing.md,
-  },
-  filterTab: {
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: Radius.full,
-    backgroundColor: Colors.surface,
-    borderWidth: 1,
-    borderColor: Colors.border,
-  },
-  filterTabActive: {
-    backgroundColor: Colors.textPrimary,
-    borderColor: Colors.textPrimary,
-  },
-  filterTabText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: Colors.textSecondary,
-  },
-  filterTabTextActive: {
-    color: Colors.textInverse,
-  },
-  emptyStateCard: {
-    backgroundColor: Colors.surface,
-    borderRadius: Radius.xl,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    padding: Spacing.xxl,
-    alignItems: 'center',
-    marginTop: Spacing.sm,
-  },
-  emptyIconCircle: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: Colors.surfaceSoft,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: Spacing.md,
   },
-  emptyTitle: {
-    fontSize: 17,
-    fontWeight: '700',
-    color: Colors.textPrimary,
-    marginBottom: 6,
-  },
-  emptySubtitle: {
-    fontSize: 13,
-    lineHeight: 19,
-    color: Colors.textSecondary,
-    textAlign: 'center',
-    marginBottom: Spacing.lg,
-  },
-  emptyActionBtn: {
-    flexDirection: 'row',
+  emptyCard: {
+    backgroundColor: 'rgba(255, 255, 255, 0.72)',
+    borderRadius: Radius.lg,
+    borderWidth: 1.2,
+    borderColor: '#FFFFFF',
+    padding: Spacing.xl,
     alignItems: 'center',
-    gap: 6,
-    backgroundColor: Colors.primarySoft,
-    paddingHorizontal: 16,
-    paddingVertical: 11,
-    borderRadius: Radius.full,
+    gap: 8,
   },
-  emptyActionBtnText: {
+  emptyText: {
     fontSize: 14,
-    fontWeight: '700',
-    color: Colors.primary,
+    color: Colors.textSecondary,
   },
   modalBackdrop: {
     flex: 1,
-    backgroundColor: 'rgba(26, 29, 32, 0.35)',
+    backgroundColor: 'rgba(30, 27, 36, 0.35)',
     justifyContent: 'flex-end',
   },
   modalSheet: {
@@ -690,121 +346,45 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.md,
   },
   modalTitle: {
-    fontSize: 19,
+    fontSize: 18,
     fontWeight: '700',
     color: Colors.textPrimary,
   },
-  closeBtn: {
-    padding: 4,
-  },
   fieldLabel: {
     fontSize: 13,
-    fontWeight: '600',
+    fontWeight: '700',
     color: Colors.textPrimary,
-    marginBottom: 6,
     marginTop: Spacing.sm,
-  },
-  categoryPickerRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: Spacing.sm,
-    marginBottom: Spacing.xs,
-  },
-  catOption: {
-    paddingHorizontal: 12,
-    paddingVertical: 7,
-    borderRadius: Radius.full,
-    backgroundColor: Colors.surfaceSoft,
-    borderWidth: 1,
-    borderColor: Colors.border,
-  },
-  catOptionSelected: {
-    backgroundColor: Colors.primary,
-    borderColor: Colors.primary,
-  },
-  catOptionText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: Colors.textSecondary,
-  },
-  catOptionTextSelected: {
-    color: Colors.textInverse,
+    marginBottom: 6,
   },
   textInput: {
-    backgroundColor: Colors.surfaceSoft,
+    backgroundColor: '#FFFFFF',
+    borderRadius: Radius.md,
     borderWidth: 1,
     borderColor: Colors.border,
-    borderRadius: Radius.md,
-    paddingHorizontal: Spacing.md,
+    paddingHorizontal: 14,
     paddingVertical: 11,
-    fontSize: 15,
-    color: Colors.textPrimary,
-  },
-  textArea: {
-    minHeight: 84,
-    textAlignVertical: 'top',
-  },
-  consentCheckCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.sm,
-    backgroundColor: Colors.surfaceSoft,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    borderRadius: Radius.md,
-    padding: Spacing.md,
-    marginTop: Spacing.lg,
-  },
-  consentCheckCardActive: {
-    backgroundColor: Colors.accentSoft,
-    borderColor: '#9AE6B4',
-  },
-  consentCheckLabel: {
-    flex: 1,
-    fontSize: 13,
-    lineHeight: 18,
-    fontWeight: '600',
+    fontSize: 14.5,
     color: Colors.textPrimary,
   },
   errorText: {
-    fontSize: 12,
+    fontSize: 12.5,
     color: Colors.error,
-    fontWeight: '600',
-    marginTop: Spacing.sm,
+    marginTop: 8,
   },
-  modalActionsRow: {
-    flexDirection: 'row',
-    gap: Spacing.md,
-    marginTop: Spacing.xl,
-  },
-  modalCancelBtn: {
-    flex: 1,
-    paddingVertical: 13,
-    borderRadius: Radius.md,
-    backgroundColor: Colors.surfaceSoft,
-    alignItems: 'center',
-  },
-  modalCancelBtnText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: Colors.textSecondary,
-  },
-  modalSaveBtn: {
-    flex: 2,
-    paddingVertical: 13,
-    borderRadius: Radius.md,
+  saveBtn: {
+    marginTop: Spacing.lg,
     backgroundColor: Colors.primary,
+    borderRadius: Radius.full,
+    paddingVertical: 14,
     alignItems: 'center',
   },
-  modalSaveBtnDisabled: {
-    backgroundColor: Colors.border,
-  },
-  modalSaveBtnText: {
-    fontSize: 14,
+  saveBtnText: {
+    fontSize: 15,
     fontWeight: '700',
     color: Colors.textInverse,
   },
   pressed: {
-    opacity: 0.85,
+    opacity: 0.84,
   },
 });

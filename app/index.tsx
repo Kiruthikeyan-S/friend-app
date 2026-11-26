@@ -1,5 +1,13 @@
-import React from 'react';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import React, { useState } from 'react';
+import {
+  ActivityIndicator,
+  Modal,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 import { Redirect, useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
@@ -25,9 +33,19 @@ const SMART_HISTORY_SUGGESTIONS = [
   },
 ];
 
+function getTimeGreeting(): { label: string; emoji: string } {
+  const hour = new Date().getHours();
+  if (hour >= 5 && hour < 12) return { label: 'Good Morning', emoji: '☀️' };
+  if (hour >= 12 && hour < 17) return { label: 'Good Afternoon', emoji: '🌤️' };
+  if (hour >= 17 && hour < 21) return { label: 'Good Evening', emoji: '🌆' };
+  return { label: 'Good Night', emoji: '🌙' };
+}
+
 export default function WelcomeScreen() {
   const router = useRouter();
   const { userProfile, authHydrated, memories, liveSessions } = useAppStore();
+  const [notifVisible, setNotifVisible] = useState(false);
+  const [notifRead, setNotifRead] = useState(false);
 
   if (!authHydrated) {
     return (
@@ -43,6 +61,8 @@ export default function WelcomeScreen() {
     return <Redirect href="/(auth)/login" />;
   }
 
+  const greeting = getTimeGreeting();
+
   return (
     <GlassBackground>
       <SafeAreaView style={styles.safeArea}>
@@ -50,7 +70,7 @@ export default function WelcomeScreen() {
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
         >
-          {/* Top Glass Avatar + Notification Badge Row (Matching Left Phone Mockup) */}
+          {/* Top Glass Avatar + Notification Bell (No name near bell) */}
           <View style={styles.topRow}>
             <Pressable
               onPress={() => router.push('/(tabs)/settings')}
@@ -59,48 +79,35 @@ export default function WelcomeScreen() {
               <IridescentMiniOrb size={38} />
             </Pressable>
 
-            <View style={styles.topRightGroup}>
-              <Pressable
-                onPress={() =>
-                  router.push(
-                    userProfile.authStatus === 'authenticated'
-                      ? '/(tabs)/settings'
-                      : '/(auth)/login'
-                  )
-                }
-                style={styles.signInGlassPill}
-                accessibilityRole="button"
-                accessibilityLabel="Account or Sign In"
-              >
-                <Text style={styles.signInGlassText}>
-                  {userProfile.authStatus === 'authenticated'
-                    ? userProfile.name.split(' ')[0]
-                    : 'Sign In'}
-                </Text>
-              </Pressable>
-
-              <Pressable
-                onPress={() => router.push('/(tabs)/memory')}
-                style={styles.bellGlassCircle}
-                accessibilityRole="button"
-                accessibilityLabel="Personal Memories and Notifications"
-              >
-                <Feather name="bell" size={18} color={Colors.textPrimary} />
+            <Pressable
+              onPress={() => {
+                setNotifVisible(true);
+                setNotifRead(true);
+              }}
+              style={styles.bellGlassCircle}
+              accessibilityRole="button"
+              accessibilityLabel="Check-in Notifications"
+            >
+              <Feather name="bell" size={18} color={Colors.textPrimary} />
+              {!notifRead ? (
                 <View style={styles.notificationBadge}>
-                  <Text style={styles.notificationBadgeText}>
-                    {Math.max(5, memories.length)}
-                  </Text>
+                  <Text style={styles.notificationBadgeText}>1</Text>
                 </View>
-              </Pressable>
-            </View>
+              ) : null}
+            </Pressable>
           </View>
 
-          {/* Hero Heading: "Hello, Ask Me Anything You Need" */}
+          {/* Time-Based Greeting Header: GM / GA / GE / GN */}
           <View style={styles.heroHeader}>
+            <View style={styles.greetingPill}>
+              <Text style={styles.greetingPillText}>
+                {greeting.emoji} {greeting.label}
+              </Text>
+            </View>
             <Text style={styles.heroTitle}>
-              Hello, <Text style={styles.heroTitleAccent}>Ask Me</Text>
+              Ask Me <Text style={styles.heroTitleAccent}>Anything</Text>
             </Text>
-            <Text style={styles.heroTitle}>Anything You Need</Text>
+            <Text style={styles.heroTitle}>You Need</Text>
           </View>
 
           {/* Glass Pill Action Strip: [ Smart Chat ] [ 🎙️ ] [ 🔖 ] [ 📎 ] */}
@@ -304,14 +311,47 @@ export default function WelcomeScreen() {
               pressed && styles.pressed,
             ]}
             accessibilityRole="button"
-            accessibilityLabel="Get Started"
+            accessibilityLabel="Start Chatting"
           >
-            <Text style={styles.getStartedBtnText}>
-              Get Started as {userProfile.name}
-            </Text>
+            <Text style={styles.getStartedBtnText}>Start Chatting</Text>
             <Feather name="arrow-right" size={17} color={Colors.textInverse} />
           </Pressable>
         </ScrollView>
+
+        {/* 2–3 Day Friendly Check-In Notification Modal */}
+        <Modal
+          visible={notifVisible}
+          animationType="fade"
+          transparent
+          onRequestClose={() => setNotifVisible(false)}
+        >
+          <View style={styles.notifBackdrop}>
+            <View style={styles.notifCard}>
+              <View style={styles.notifHeader}>
+                <View style={styles.notifTitleRow}>
+                  <IridescentMiniOrb size={26} />
+                  <Text style={styles.notifTitle}>Friendly Reminder</Text>
+                </View>
+                <Pressable onPress={() => setNotifVisible(false)} hitSlop={8}>
+                  <Feather name="x" size={18} color={Colors.textSecondary} />
+                </Pressable>
+              </View>
+              <Text style={styles.notifBody}>
+                Hey! Just checking in every 2–3 days to say Hi 👋 How are you doing today?
+              </Text>
+              <Pressable
+                onPress={() => {
+                  setNotifVisible(false);
+                  router.push('/(tabs)/chat');
+                }}
+                style={styles.notifActionBtn}
+              >
+                <Text style={styles.notifActionText}>Say Hi to Aura</Text>
+                <Feather name="message-circle" size={16} color={Colors.textInverse} />
+              </Pressable>
+            </View>
+          </View>
+        </Modal>
       </SafeAreaView>
     </GlassBackground>
   );
@@ -331,6 +371,70 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     marginBottom: Spacing.xl,
+  },
+  greetingPill: {
+    alignSelf: 'flex-start',
+    backgroundColor: 'rgba(255, 255, 255, 0.85)',
+    borderWidth: 1.2,
+    borderColor: 'rgba(255, 255, 255, 0.96)',
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+    borderRadius: Radius.full,
+    marginBottom: 10,
+  },
+  greetingPillText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: Colors.primary,
+  },
+  notifBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(30, 27, 36, 0.35)',
+    justifyContent: 'center',
+    padding: Spacing.xl,
+  },
+  notifCard: {
+    backgroundColor: Colors.background,
+    borderRadius: Radius.xl,
+    borderWidth: 1.5,
+    borderColor: '#FFFFFF',
+    padding: Spacing.xl,
+  },
+  notifHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: Spacing.md,
+  },
+  notifTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  notifTitle: {
+    fontSize: 17,
+    fontWeight: '700',
+    color: Colors.textPrimary,
+  },
+  notifBody: {
+    fontSize: 14.5,
+    lineHeight: 22,
+    color: Colors.textSecondary,
+    marginBottom: Spacing.lg,
+  },
+  notifActionBtn: {
+    backgroundColor: Colors.primary,
+    borderRadius: Radius.full,
+    paddingVertical: 13,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+  },
+  notifActionText: {
+    fontSize: 14.5,
+    fontWeight: '700',
+    color: Colors.textInverse,
   },
   avatarGlassRing: {
     width: 46,

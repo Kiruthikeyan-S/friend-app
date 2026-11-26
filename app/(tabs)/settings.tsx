@@ -1,13 +1,11 @@
 import React, { useState } from 'react';
 import {
-  KeyboardAvoidingView,
   Modal,
   Pressable,
   ScrollView,
   StyleSheet,
   Switch,
   Text,
-  TextInput,
   View,
 } from 'react-native';
 import { useRouter } from 'expo-router';
@@ -27,470 +25,354 @@ export default function SettingsScreen() {
     voiceSettings,
     memoryPermissions,
     privacySettings,
-    liveSessions,
   } = useAppStore();
 
-  const [profileModalVisible, setProfileModalVisible] = useState(false);
-  const [editName, setEditName] = useState(userProfile.name);
-  const [editEmail, setEditEmail] = useState(userProfile.email);
-
   const [clearConfirmVisible, setClearConfirmVisible] = useState(false);
+  const [infoModal, setInfoModal] = useState<{ title: string; body: string } | null>(
+    null
+  );
   const [statusFeedback, setStatusFeedback] = useState<string | null>(null);
 
   const showFeedback = (text: string) => {
     setStatusFeedback(text);
     setTimeout(() => {
       setStatusFeedback((prev) => (prev === text ? null : prev));
-    }, 3000);
+    }, 2500);
   };
 
-  const handleSaveProfile = () => {
-    const cleanName = editName.trim() || 'Alex Morgan';
-    const cleanEmail = editEmail.trim() || 'alex.morgan@example.com';
-    const initials = cleanName
-      .split(' ')
-      .map((part) => part[0])
-      .join('')
-      .slice(0, 2)
-      .toUpperCase();
-
-    AppStore.updateUserProfile({
-      name: cleanName,
-      email: cleanEmail,
-      avatarInitials: initials || 'AM',
-    });
-    setProfileModalVisible(false);
-    showFeedback('Profile display details updated.');
-  };
-
-  const handleConfirmClearHistory = () => {
-    AppStore.clearAllLiveConversations();
-    setClearConfirmVisible(false);
-    showFeedback('Live conversation history cleared.');
-  };
+  const renderInfoBtn = (title: string, body: string) => (
+    <Pressable
+      onPress={() => setInfoModal({ title, body })}
+      hitSlop={8}
+      style={styles.infoBtn}
+      accessibilityRole="button"
+      accessibilityLabel={`Info about ${title}`}
+    >
+      <Feather name="info" size={15} color={Colors.primary} />
+    </Pressable>
+  );
 
   return (
     <GlassBackground>
       <SafeAreaView style={styles.safeArea} edges={['top']}>
-      {/* Top Bar */}
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>Settings</Text>
-        <Text style={styles.headerSubtitle}>
-          Voice, language, privacy & memory controls
-        </Text>
-      </View>
-
-      {statusFeedback ? (
-        <View style={styles.feedbackBanner}>
-          <Feather name="check-circle" size={15} color={Colors.success} />
-          <Text style={styles.feedbackBannerText}>{statusFeedback}</Text>
+        <View style={styles.header}>
+          <Text style={styles.headerTitle}>Settings</Text>
         </View>
-      ) : null}
 
-      <ScrollView
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-      >
-        {/* 1. User Profile Card (Logged-in Account Details) */}
-        <Text style={styles.sectionHeading}>Profile</Text>
-        <View style={styles.card}>
-          <View style={styles.profileRow}>
-            <View style={styles.avatarCircle}>
-              <Text style={styles.avatarText}>{userProfile.avatarInitials}</Text>
-            </View>
-            <View style={styles.profileInfo}>
-              <Text style={styles.profileName}>{userProfile.name}</Text>
-              <Text style={styles.profileEmail}>{userProfile.email}</Text>
-              <View style={styles.authStatusBadge}>
-                <Feather
-                  name="check-circle"
-                  size={11}
-                  color={Colors.success}
-                />
-                <Text style={[styles.authStatusText, { color: Colors.success }]}>
-                  Signed In · Verified Account
-                </Text>
+        {statusFeedback ? (
+          <View style={styles.feedbackBanner}>
+            <Feather name="check-circle" size={15} color={Colors.success} />
+            <Text style={styles.feedbackBannerText}>{statusFeedback}</Text>
+          </View>
+        ) : null}
+
+        <ScrollView
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+        >
+          {/* 1. Profile */}
+          <Text style={styles.sectionHeading}>Profile</Text>
+          <View style={styles.card}>
+            <View style={styles.profileRow}>
+              <View style={styles.avatarCircle}>
+                <Text style={styles.avatarText}>{userProfile.avatarInitials}</Text>
               </View>
+              <View style={styles.profileInfo}>
+                <Text style={styles.profileName}>{userProfile.name}</Text>
+                <Text style={styles.profileEmail}>{userProfile.email}</Text>
+              </View>
+              {renderInfoBtn(
+                'Account Profile',
+                'Signed in with your private account. Your chats and memories are saved separately and never shared with other users.'
+              )}
             </View>
           </View>
-        </View>
 
-        {/* 2. Voice Settings */}
-        <Text style={styles.sectionHeading}>
-          Agent Voice Settings (5 Voices · Tap to Switch & Hear)
-        </Text>
-        <View style={styles.card}>
-          <Text style={styles.subLabel}>
-            Choose from 5 distinct AI Agent Voices (tap any voice to hear a live sample):
-          </Text>
-          <View style={styles.voicePersonasCol}>
-            {AppConfig.voicePersonas.map((persona) => {
-              const selected = voiceSettings.selectedVoiceId === persona.id;
-              return (
-                <Pressable
-                  key={persona.id}
-                  onPress={() => {
-                    AppStore.updateVoiceSettings({
-                      selectedVoiceId: persona.id,
-                      voicePitch: persona.pitch,
-                      speechSpeed: persona.defaultRate,
-                    });
-                    VoiceService.speakText(persona.sampleText, {
-                      personaId: persona.id,
-                      language: persona.voiceLocale,
-                      pitch: persona.pitch,
-                      rate: persona.defaultRate,
-                    });
-                    showFeedback(`Switched agent voice to ${persona.name}`);
-                  }}
-                  style={[
-                    styles.personaOption,
-                    selected && styles.personaOptionSelected,
-                  ]}
-                >
-                  <View style={{ flex: 1, marginRight: 10 }}>
+          {/* 2. Agent Voice */}
+          <View style={styles.sectionHeaderRow}>
+            <Text style={styles.sectionHeading}>Agent Voice</Text>
+            {renderInfoBtn(
+              'Agent Voices',
+              'Tap any of the 5 voices to switch and hear a live sample. Switching voices only changes vocal tone and speed.'
+            )}
+          </View>
+          <View style={styles.card}>
+            <View style={styles.voicePersonasCol}>
+              {AppConfig.voicePersonas.map((persona) => {
+                const selected = voiceSettings.selectedVoiceId === persona.id;
+                return (
+                  <Pressable
+                    key={persona.id}
+                    onPress={() => {
+                      AppStore.updateVoiceSettings({
+                        selectedVoiceId: persona.id,
+                        voicePitch: persona.pitch,
+                        speechSpeed: persona.defaultRate,
+                      });
+                      VoiceService.speakText(persona.sampleText, {
+                        personaId: persona.id,
+                        language: persona.voiceLocale,
+                        pitch: persona.pitch,
+                        rate: persona.defaultRate,
+                      });
+                      showFeedback(`Voice: ${persona.shortName}`);
+                    }}
+                    style={[
+                      styles.personaOption,
+                      selected && styles.personaOptionSelected,
+                    ]}
+                  >
                     <Text
                       style={[
                         styles.personaName,
                         selected && styles.personaNameSelected,
                       ]}
                     >
-                      {persona.name}
+                      {persona.shortName}
                     </Text>
-                    <Text style={styles.personaDesc}>
-                      {persona.badge} · {persona.description}
+                    <Feather
+                      name={selected ? 'volume-2' : 'play-circle'}
+                      size={18}
+                      color={selected ? Colors.primary : Colors.textMuted}
+                    />
+                  </Pressable>
+                );
+              })}
+            </View>
+
+            <View style={styles.divider} />
+
+            <View style={styles.settingToggleRow}>
+              <View style={styles.rowLeftWithInfo}>
+                <Text style={styles.settingTitle}>Voice on Text Chat</Text>
+                {renderInfoBtn(
+                  'Voice on Text Chat',
+                  'Keep OFF for silent text-only replies in Smart Chat. The Voice tab always speaks out loud.'
+                )}
+              </View>
+              <Switch
+                value={voiceSettings.autoPlayAssistantVoice}
+                onValueChange={(val) =>
+                  AppStore.updateVoiceSettings({ autoPlayAssistantVoice: val })
+                }
+                trackColor={{ false: Colors.border, true: Colors.primary }}
+              />
+            </View>
+          </View>
+
+          {/* 3. Language & Speed */}
+          <Text style={styles.sectionHeading}>Language & Speed</Text>
+          <View style={styles.card}>
+            <View style={styles.chipsWrap}>
+              {AppConfig.supportedLanguages.map((lang) => {
+                const selected = voiceSettings.languageCode === lang.code;
+                return (
+                  <Pressable
+                    key={lang.code}
+                    onPress={() =>
+                      AppStore.updateVoiceSettings({ languageCode: lang.code })
+                    }
+                    style={[styles.choiceChip, selected && styles.choiceChipSelected]}
+                  >
+                    <Text
+                      style={[
+                        styles.choiceChipText,
+                        selected && styles.choiceChipTextSelected,
+                      ]}
+                    >
+                      {lang.label}
                     </Text>
-                  </View>
-                  <Feather
-                    name={selected ? 'volume-2' : 'play-circle'}
-                    size={19}
-                    color={selected ? Colors.primary : Colors.textMuted}
-                  />
-                </Pressable>
-              );
-            })}
-          </View>
-
-          <View style={styles.divider} />
-
-          <View style={styles.settingToggleRow}>
-            <View style={styles.settingTextCol}>
-              <Text style={styles.settingTitle}>
-                Auto-play Voice on Text Chat
-              </Text>
-              <Text style={styles.settingDesc}>
-                Keep OFF for text-only answers in Smart Chat (Voice tab always speaks).
-              </Text>
+                  </Pressable>
+                );
+              })}
             </View>
-            <Switch
-              value={voiceSettings.autoPlayAssistantVoice}
-              onValueChange={(val) =>
-                AppStore.updateVoiceSettings({ autoPlayAssistantVoice: val })
-              }
-              trackColor={{ false: Colors.border, true: Colors.primary }}
-            />
-          </View>
-        </View>
 
-        {/* 3. Language Selection */}
-        <Text style={styles.sectionHeading}>Language Selection</Text>
-        <View style={styles.card}>
-          <View style={styles.chipsWrap}>
-            {AppConfig.supportedLanguages.map((lang) => {
-              const selected = voiceSettings.languageCode === lang.code;
-              return (
-                <Pressable
-                  key={lang.code}
-                  onPress={() =>
-                    AppStore.updateVoiceSettings({ languageCode: lang.code })
-                  }
-                  style={[styles.choiceChip, selected && styles.choiceChipSelected]}
-                >
-                  <Text
-                    style={[
-                      styles.choiceChipText,
-                      selected && styles.choiceChipTextSelected,
-                    ]}
+            <View style={styles.divider} />
+
+            <View style={styles.chipsWrap}>
+              {AppConfig.speechSpeeds.map((item) => {
+                const selected = voiceSettings.speechSpeed === item.value;
+                return (
+                  <Pressable
+                    key={item.label}
+                    onPress={() =>
+                      AppStore.updateVoiceSettings({ speechSpeed: item.value })
+                    }
+                    style={[styles.choiceChip, selected && styles.choiceChipSelected]}
                   >
-                    {lang.label}
-                  </Text>
-                </Pressable>
-              );
-            })}
-          </View>
-        </View>
-
-        {/* 4. Speech Speed Preference */}
-        <Text style={styles.sectionHeading}>Speech Speed Preference</Text>
-        <View style={styles.card}>
-          <View style={styles.chipsWrap}>
-            {AppConfig.speechSpeeds.map((item) => {
-              const selected = voiceSettings.speechSpeed === item.value;
-              return (
-                <Pressable
-                  key={item.label}
-                  onPress={() =>
-                    AppStore.updateVoiceSettings({ speechSpeed: item.value })
-                  }
-                  style={[styles.choiceChip, selected && styles.choiceChipSelected]}
-                >
-                  <Text
-                    style={[
-                      styles.choiceChipText,
-                      selected && styles.choiceChipTextSelected,
-                    ]}
-                  >
-                    {item.label}
-                  </Text>
-                </Pressable>
-              );
-            })}
-          </View>
-        </View>
-
-        {/* 5. Privacy & Memory Permissions */}
-        <Text style={styles.sectionHeading}>Privacy & Memory Permissions</Text>
-        <View style={styles.card}>
-          <View style={styles.settingToggleRow}>
-            <View style={styles.settingTextCol}>
-              <Text style={styles.settingTitle}>
-                Allow Consent-Based Memory Requests
-              </Text>
-              <Text style={styles.settingDesc}>
-                Never automatic. Every memory still requires your explicit approval.
-              </Text>
+                    <Text
+                      style={[
+                        styles.choiceChipText,
+                        selected && styles.choiceChipTextSelected,
+                      ]}
+                    >
+                      {item.label}
+                    </Text>
+                  </Pressable>
+                );
+              })}
             </View>
-            <Switch
-              value={memoryPermissions.allowMemoryRequests}
-              onValueChange={(val) =>
-                AppStore.updateMemoryPermissions({ allowMemoryRequests: val })
-              }
-              trackColor={{ false: Colors.border, true: Colors.accent }}
-            />
           </View>
 
-          <View style={styles.divider} />
-
-          <View style={styles.settingToggleRow}>
-            <View style={styles.settingTextCol}>
-              <Text style={styles.settingTitle}>
-                Delete Temporary Voice Buffers After Processing
-              </Text>
-              <Text style={styles.settingDesc}>
-                Automatically discard raw microphone audio once transcribed.
-              </Text>
-            </View>
-            <Switch
-              value={privacySettings.localAudioCleanup}
-              onValueChange={(val) =>
-                AppStore.updatePrivacySettings({ localAudioCleanup: val })
-              }
-              trackColor={{ false: Colors.border, true: Colors.primary }}
-            />
-          </View>
-
-          <View style={styles.divider} />
-
-          <View style={styles.settingToggleRow}>
-            <View style={styles.settingTextCol}>
-              <Text style={styles.settingTitle}>
-                Share Anonymous Crash Diagnostics
-              </Text>
-              <Text style={styles.settingDesc}>
-                Help improve Android layout and audio stability.
-              </Text>
-            </View>
-            <Switch
-              value={privacySettings.shareDiagnostics}
-              onValueChange={(val) =>
-                AppStore.updatePrivacySettings({ shareDiagnostics: val })
-              }
-              trackColor={{ false: Colors.border, true: Colors.primary }}
-            />
-          </View>
-        </View>
-
-        {/* 6. Data & Account Actions */}
-        <Text style={styles.sectionHeading}>Data & Session Management</Text>
-        <View style={styles.card}>
-          <Pressable
-            onPress={() => setClearConfirmVisible(true)}
-            style={({ pressed }) => [
-              styles.actionRowButton,
-              pressed && styles.pressed,
-            ]}
-            accessibilityRole="button"
-            accessibilityLabel="Clear conversation history"
-          >
-            <View style={styles.actionRowLeft}>
-              <View style={[styles.actionIconBox, { backgroundColor: Colors.surfaceWarning }]}>
-                <Feather name="trash-2" size={16} color={Colors.warning} />
+          {/* 4. Privacy */}
+          <Text style={styles.sectionHeading}>Privacy</Text>
+          <View style={styles.card}>
+            <View style={styles.settingToggleRow}>
+              <View style={styles.rowLeftWithInfo}>
+                <Text style={styles.settingTitle}>Save Memories</Text>
+                {renderInfoBtn(
+                  'Save Memories',
+                  'Allows Aura to save personal details you share into your private Memory list.'
+                )}
               </View>
-              <View>
-                <Text style={styles.actionRowTitle}>
-                  Clear Conversation History
-                </Text>
-                <Text style={styles.actionRowSubtitle}>
-                  Reset {liveSessions.length} active live session(s)
-                </Text>
-              </View>
+              <Switch
+                value={memoryPermissions.allowMemoryRequests}
+                onValueChange={(val) =>
+                  AppStore.updateMemoryPermissions({ allowMemoryRequests: val })
+                }
+                trackColor={{ false: Colors.border, true: Colors.accent }}
+              />
             </View>
-            <Feather name="chevron-right" size={18} color={Colors.textMuted} />
-          </Pressable>
 
-          <View style={styles.divider} />
+            <View style={styles.divider} />
 
-          <Pressable
-            onPress={async () => {
-              if (userProfile.authStatus === 'authenticated') {
+            <View style={styles.settingToggleRow}>
+              <View style={styles.rowLeftWithInfo}>
+                <Text style={styles.settingTitle}>Auto-Clean Audio</Text>
+                {renderInfoBtn(
+                  'Auto-Clean Audio',
+                  'Automatically deletes temporary voice recording files from your phone cache right after transcription.'
+                )}
+              </View>
+              <Switch
+                value={privacySettings.localAudioCleanup}
+                onValueChange={(val) =>
+                  AppStore.updatePrivacySettings({ localAudioCleanup: val })
+                }
+                trackColor={{ false: Colors.border, true: Colors.primary }}
+              />
+            </View>
+          </View>
+
+          {/* 5. About App & Account */}
+          <Text style={styles.sectionHeading}>About & Account</Text>
+          <View style={styles.card}>
+            <Pressable
+              onPress={() =>
+                setInfoModal({
+                  title: AppConfig.appName,
+                  body: `Version ${AppConfig.version}\n\n• 5 smooth country-neutral AI voices\n• Instant Voice-to-Voice & Text Chat\n• Private per-account cloud database\n• Automatic temporary audio cleanup`,
+                })
+              }
+              style={styles.actionRowButton}
+            >
+              <View style={styles.actionRowLeft}>
+                <View style={[styles.actionIconBox, { backgroundColor: Colors.primarySoft }]}>
+                  <Feather name="info" size={16} color={Colors.primary} />
+                </View>
+                <Text style={styles.actionRowTitle}>About {AppConfig.appName}</Text>
+              </View>
+              <Feather name="chevron-right" size={18} color={Colors.textMuted} />
+            </Pressable>
+
+            <View style={styles.divider} />
+
+            <Pressable
+              onPress={() => setClearConfirmVisible(true)}
+              style={styles.actionRowButton}
+            >
+              <View style={styles.actionRowLeft}>
+                <View style={[styles.actionIconBox, { backgroundColor: Colors.surfaceWarning }]}>
+                  <Feather name="trash-2" size={16} color={Colors.warning} />
+                </View>
+                <Text style={styles.actionRowTitle}>Clear Chat History</Text>
+              </View>
+              <Feather name="chevron-right" size={18} color={Colors.textMuted} />
+            </Pressable>
+
+            <View style={styles.divider} />
+
+            <Pressable
+              onPress={async () => {
                 await AuthService.signOut();
                 await AppStore.signOutUser();
-              }
-              router.replace('/(auth)/login');
-            }}
-            style={({ pressed }) => [
-              styles.actionRowButton,
-              pressed && styles.pressed,
-            ]}
-            accessibilityRole="button"
-            accessibilityLabel="Logout"
-          >
-            <View style={styles.actionRowLeft}>
-              <View style={[styles.actionIconBox, { backgroundColor: Colors.surfaceDanger }]}>
-                <Feather
-                  name={userProfile.authStatus === 'authenticated' ? 'log-out' : 'log-in'}
-                  size={16}
-                  color={Colors.error}
-                />
-              </View>
-              <View>
+                router.replace('/(auth)/login');
+              }}
+              style={styles.actionRowButton}
+            >
+              <View style={styles.actionRowLeft}>
+                <View style={[styles.actionIconBox, { backgroundColor: Colors.surfaceDanger }]}>
+                  <Feather name="log-out" size={16} color={Colors.error} />
+                </View>
                 <Text style={[styles.actionRowTitle, { color: Colors.error }]}>
-                  {userProfile.authStatus === 'authenticated'
-                    ? 'Sign Out of Account'
-                    : 'Sign In / Create Account'}
-                </Text>
-                <Text style={styles.actionRowSubtitle}>
-                  {userProfile.authStatus === 'authenticated'
-                    ? 'Sign out and switch accounts cleanly'
-                    : 'Log in with email & password to sync across devices'}
+                  Sign Out
                 </Text>
               </View>
-            </View>
-            <Feather name="chevron-right" size={18} color={Colors.textMuted} />
-          </Pressable>
-        </View>
-
-        {/* 7. About App Details */}
-        <Text style={styles.sectionHeading}>About App</Text>
-        <View style={styles.card}>
-          <View style={styles.settingToggleRow}>
-            <View style={styles.settingTextCol}>
-              <Text style={styles.settingTitle}>{AppConfig.appName}</Text>
-              <Text style={styles.settingDesc}>
-                Personal Voice & Text AI Assistant ({AppConfig.version})
-              </Text>
-            </View>
-            <Feather name="info" size={18} color={Colors.primary} />
+              <Feather name="chevron-right" size={18} color={Colors.textMuted} />
+            </Pressable>
           </View>
+        </ScrollView>
 
-          <View style={styles.divider} />
-
-          <View style={styles.settingToggleRow}>
-            <View style={styles.settingTextCol}>
-              <Text style={styles.settingTitle}>Voice & Chat Engine</Text>
-              <Text style={styles.settingDesc}>
-                5 smooth country-neutral voices, Whisper Turbo STT, and fast AI replies.
-              </Text>
-            </View>
-          </View>
-
-          <View style={styles.divider} />
-
-          <View style={styles.settingToggleRow}>
-            <View style={styles.settingTextCol}>
-              <Text style={styles.settingTitle}>Private Account Database</Text>
-              <Text style={styles.settingDesc}>
-                Your chats and memories are isolated to your signed-in account and never shared with other users.
-              </Text>
-            </View>
-          </View>
-        </View>
-      </ScrollView>
-
-      {/* Edit Profile Modal */}
-      <Modal
-        visible={profileModalVisible}
-        animationType="fade"
-        transparent
-        onRequestClose={() => setProfileModalVisible(false)}
-      >
-        <KeyboardAvoidingView style={styles.modalBackdrop} behavior="padding">
-          <View style={styles.dialogCard}>
-            <Text style={styles.dialogTitle}>Edit Profile Display</Text>
-            <Text style={styles.fieldLabel}>Full Name</Text>
-            <TextInput
-              style={styles.textInput}
-              value={editName}
-              onChangeText={setEditName}
-              placeholder="Your name"
-            />
-            <Text style={styles.fieldLabel}>Email Address</Text>
-            <TextInput
-              style={styles.textInput}
-              value={editEmail}
-              onChangeText={setEditEmail}
-              keyboardType="email-address"
-              autoCapitalize="none"
-            />
-            <View style={styles.dialogActions}>
+        {/* Info "(i)" Modal */}
+        <Modal
+          visible={Boolean(infoModal)}
+          animationType="fade"
+          transparent
+          onRequestClose={() => setInfoModal(null)}
+        >
+          <View style={styles.modalBackdrop}>
+            <View style={styles.dialogCard}>
+              <View style={styles.infoModalHeader}>
+                <Text style={styles.dialogTitle}>{infoModal?.title}</Text>
+                <Pressable onPress={() => setInfoModal(null)} hitSlop={8}>
+                  <Feather name="x" size={18} color={Colors.textSecondary} />
+                </Pressable>
+              </View>
+              <Text style={styles.dialogBody}>{infoModal?.body}</Text>
               <Pressable
-                onPress={() => setProfileModalVisible(false)}
-                style={styles.dialogCancelBtn}
-              >
-                <Text style={styles.dialogCancelText}>Cancel</Text>
-              </Pressable>
-              <Pressable
-                onPress={handleSaveProfile}
+                onPress={() => setInfoModal(null)}
                 style={styles.dialogPrimaryBtn}
               >
-                <Text style={styles.dialogPrimaryText}>Save</Text>
+                <Text style={styles.dialogPrimaryText}>Got it</Text>
               </Pressable>
             </View>
           </View>
-        </KeyboardAvoidingView>
-      </Modal>
+        </Modal>
 
-      {/* Clear Conversation History Confirmation Modal */}
-      <Modal
-        visible={clearConfirmVisible}
-        animationType="fade"
-        transparent
-        onRequestClose={() => setClearConfirmVisible(false)}
-      >
-        <View style={styles.modalBackdrop}>
-          <View style={styles.dialogCard}>
-            <Text style={styles.dialogTitle}>Clear Conversation History?</Text>
-            <Text style={styles.dialogBody}>
-              This will clear all live chat messages and start a fresh
-              conversation. Separated UI preview examples will remain untouched.
-            </Text>
-            <View style={styles.dialogActions}>
-              <Pressable
-                onPress={() => setClearConfirmVisible(false)}
-                style={styles.dialogCancelBtn}
-              >
-                <Text style={styles.dialogCancelText}>Cancel</Text>
-              </Pressable>
-              <Pressable
-                onPress={handleConfirmClearHistory}
-                style={[styles.dialogPrimaryBtn, { backgroundColor: Colors.error }]}
-              >
-                <Text style={styles.dialogPrimaryText}>Clear History</Text>
-              </Pressable>
+        {/* Clear History Confirmation Modal */}
+        <Modal
+          visible={clearConfirmVisible}
+          animationType="fade"
+          transparent
+          onRequestClose={() => setClearConfirmVisible(false)}
+        >
+          <View style={styles.modalBackdrop}>
+            <View style={styles.dialogCard}>
+              <Text style={styles.dialogTitle}>Clear Chat History?</Text>
+              <Text style={styles.dialogBody}>
+                This deletes your saved chat messages from this account.
+              </Text>
+              <View style={styles.dialogActions}>
+                <Pressable
+                  onPress={() => setClearConfirmVisible(false)}
+                  style={styles.dialogCancelBtn}
+                >
+                  <Text style={styles.dialogCancelText}>Cancel</Text>
+                </Pressable>
+                <Pressable
+                  onPress={() => {
+                    AppStore.clearAllLiveConversations();
+                    setClearConfirmVisible(false);
+                    showFeedback('Chat history cleared.');
+                  }}
+                  style={[styles.dialogPrimaryBtn, { backgroundColor: Colors.error, flex: 1 }]}
+                >
+                  <Text style={styles.dialogPrimaryText}>Clear</Text>
+                </Pressable>
+              </View>
             </View>
           </View>
-        </View>
-      </Modal>
+        </Modal>
       </SafeAreaView>
     </GlassBackground>
   );
@@ -501,77 +383,79 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   header: {
-    paddingHorizontal: Spacing.lg,
-    paddingVertical: Spacing.md,
-    backgroundColor: 'rgba(255, 255, 255, 0.72)',
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255, 255, 255, 0.94)',
+    paddingHorizontal: Spacing.xl,
+    paddingTop: Spacing.md,
+    paddingBottom: Spacing.sm,
   },
   headerTitle: {
-    fontSize: 19,
+    fontSize: 22,
     fontWeight: '700',
     color: Colors.textPrimary,
-  },
-  headerSubtitle: {
-    fontSize: 12,
-    color: Colors.textSecondary,
-    marginTop: 2,
   },
   feedbackBanner: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    backgroundColor: Colors.accentSoft,
-    marginHorizontal: Spacing.lg,
-    marginTop: Spacing.sm,
+    backgroundColor: Colors.surfaceSuccess,
+    marginHorizontal: Spacing.xl,
+    marginBottom: Spacing.sm,
     paddingHorizontal: Spacing.md,
-    paddingVertical: 10,
+    paddingVertical: 9,
     borderRadius: Radius.md,
-    borderWidth: 1,
-    borderColor: '#9AE6B4',
   },
   feedbackBannerText: {
     fontSize: 13,
     fontWeight: '600',
-    color: Colors.accent,
+    color: Colors.success,
   },
   scrollContent: {
-    paddingHorizontal: Spacing.lg,
-    paddingTop: Spacing.md,
+    paddingHorizontal: Spacing.xl,
     paddingBottom: Spacing.xxxl,
   },
+  sectionHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
   sectionHeading: {
-    fontSize: 13,
+    fontSize: 12.5,
     fontWeight: '700',
     color: Colors.textSecondary,
     textTransform: 'uppercase',
-    letterSpacing: 0.4,
+    letterSpacing: 0.5,
+    marginTop: Spacing.md,
     marginBottom: Spacing.sm,
-    marginTop: Spacing.sm,
+  },
+  infoBtn: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    backgroundColor: 'rgba(255, 255, 255, 0.85)',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   card: {
-    backgroundColor: Colors.surface,
-    borderRadius: Radius.xl,
-    borderWidth: 1,
-    borderColor: Colors.border,
+    backgroundColor: 'rgba(255, 255, 255, 0.80)',
+    borderRadius: Radius.lg,
+    borderWidth: 1.2,
+    borderColor: '#FFFFFF',
     padding: Spacing.lg,
-    marginBottom: Spacing.md,
   },
   profileRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: Spacing.md,
+    gap: 12,
   },
   avatarCircle: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
+    width: 48,
+    height: 48,
+    borderRadius: 24,
     backgroundColor: Colors.primarySoft,
     alignItems: 'center',
     justifyContent: 'center',
   },
   avatarText: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: '700',
     color: Colors.primary,
   },
@@ -579,7 +463,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   profileName: {
-    fontSize: 16,
+    fontSize: 16.5,
     fontWeight: '700',
     color: Colors.textPrimary,
   },
@@ -588,110 +472,72 @@ const styles = StyleSheet.create({
     color: Colors.textSecondary,
     marginTop: 2,
   },
-  authStatusBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    alignSelf: 'flex-start',
-    gap: 4,
-    backgroundColor: Colors.surfaceWarning,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: Radius.full,
-    marginTop: 6,
-  },
-  authStatusText: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: Colors.warning,
-  },
-  editProfileBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: Colors.surfaceSoft,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  subLabel: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: Colors.textSecondary,
-    marginBottom: Spacing.sm,
-  },
   voicePersonasCol: {
-    gap: Spacing.sm,
+    gap: 8,
   },
   personaOption: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    padding: Spacing.md,
+    paddingHorizontal: 14,
+    paddingVertical: 11,
     borderRadius: Radius.md,
-    backgroundColor: Colors.surfaceSoft,
+    backgroundColor: 'rgba(255, 255, 255, 0.72)',
     borderWidth: 1,
-    borderColor: Colors.border,
+    borderColor: Colors.borderSubtle,
   },
   personaOptionSelected: {
     backgroundColor: Colors.primarySoft,
     borderColor: Colors.primary,
   },
   personaName: {
-    fontSize: 14,
-    fontWeight: '700',
+    fontSize: 14.5,
+    fontWeight: '600',
     color: Colors.textPrimary,
   },
   personaNameSelected: {
     color: Colors.primary,
-  },
-  personaDesc: {
-    fontSize: 12,
-    color: Colors.textSecondary,
-    marginTop: 2,
+    fontWeight: '700',
   },
   divider: {
     height: 1,
-    backgroundColor: Colors.divider,
+    backgroundColor: Colors.borderSubtle,
     marginVertical: Spacing.md,
   },
   settingToggleRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    gap: Spacing.md,
   },
-  settingTextCol: {
-    flex: 1,
+  rowLeftWithInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
   },
   settingTitle: {
-    fontSize: 14,
+    fontSize: 14.5,
     fontWeight: '600',
     color: Colors.textPrimary,
-  },
-  settingDesc: {
-    fontSize: 12,
-    lineHeight: 17,
-    color: Colors.textSecondary,
-    marginTop: 2,
   },
   chipsWrap: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: Spacing.sm,
+    gap: 8,
   },
   choiceChip: {
-    paddingHorizontal: 14,
-    paddingVertical: 9,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
     borderRadius: Radius.full,
-    backgroundColor: Colors.surfaceSoft,
+    backgroundColor: 'rgba(255, 255, 255, 0.75)',
     borderWidth: 1,
-    borderColor: Colors.border,
+    borderColor: Colors.borderSubtle,
   },
   choiceChipSelected: {
     backgroundColor: Colors.primary,
     borderColor: Colors.primary,
   },
   choiceChipText: {
-    fontSize: 13,
+    fontSize: 12.5,
     fontWeight: '600',
     color: Colors.textSecondary,
   },
@@ -707,79 +553,59 @@ const styles = StyleSheet.create({
   actionRowLeft: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: Spacing.md,
+    gap: 12,
   },
   actionIconBox: {
-    width: 38,
-    height: 38,
-    borderRadius: Radius.md,
+    width: 34,
+    height: 34,
+    borderRadius: 17,
     alignItems: 'center',
     justifyContent: 'center',
   },
   actionRowTitle: {
-    fontSize: 14,
-    fontWeight: '700',
+    fontSize: 14.5,
+    fontWeight: '600',
     color: Colors.textPrimary,
-  },
-  actionRowSubtitle: {
-    fontSize: 12,
-    color: Colors.textSecondary,
-    marginTop: 2,
   },
   modalBackdrop: {
     flex: 1,
-    backgroundColor: 'rgba(26, 29, 32, 0.35)',
-    alignItems: 'center',
+    backgroundColor: 'rgba(30, 27, 36, 0.35)',
     justifyContent: 'center',
     padding: Spacing.xl,
   },
   dialogCard: {
-    width: '100%',
     backgroundColor: Colors.background,
+    borderRadius: Radius.xl,
     borderWidth: 1.5,
     borderColor: '#FFFFFF',
-    borderRadius: Radius.xl,
     padding: Spacing.xl,
+  },
+  infoModalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: Spacing.sm,
   },
   dialogTitle: {
     fontSize: 18,
     fontWeight: '700',
     color: Colors.textPrimary,
-    marginBottom: Spacing.sm,
   },
   dialogBody: {
     fontSize: 14,
-    lineHeight: 20,
+    lineHeight: 21,
     color: Colors.textSecondary,
     marginBottom: Spacing.lg,
   },
-  fieldLabel: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: Colors.textSecondary,
-    marginBottom: 4,
-    marginTop: Spacing.sm,
-  },
-  textInput: {
-    backgroundColor: Colors.surfaceSoft,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    borderRadius: Radius.md,
-    paddingHorizontal: Spacing.md,
-    paddingVertical: 10,
-    fontSize: 15,
-    color: Colors.textPrimary,
-  },
   dialogActions: {
     flexDirection: 'row',
-    gap: Spacing.md,
-    marginTop: Spacing.lg,
+    gap: 10,
   },
   dialogCancelBtn: {
     flex: 1,
     paddingVertical: 12,
-    borderRadius: Radius.md,
-    backgroundColor: Colors.surfaceSoft,
+    borderRadius: Radius.full,
+    backgroundColor: 'rgba(255, 255, 255, 0.85)',
     alignItems: 'center',
   },
   dialogCancelText: {
@@ -788,9 +614,8 @@ const styles = StyleSheet.create({
     color: Colors.textSecondary,
   },
   dialogPrimaryBtn: {
-    flex: 1,
     paddingVertical: 12,
-    borderRadius: Radius.md,
+    borderRadius: Radius.full,
     backgroundColor: Colors.primary,
     alignItems: 'center',
   },
@@ -798,8 +623,5 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '700',
     color: Colors.textInverse,
-  },
-  pressed: {
-    opacity: 0.84,
   },
 });

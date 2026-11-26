@@ -26,9 +26,6 @@ export default function VoiceAssistantScreen() {
   const {
     interactionState,
     recordingSeconds,
-    recognizedSpeechPreview,
-    assistantResponsePreview,
-    statusMessage,
     autoSendSeconds,
     setAutoSendSeconds,
     voiceSettings,
@@ -160,15 +157,9 @@ export default function VoiceAssistantScreen() {
           </Pressable>
         </View>
 
-        <ScrollView
-          contentContainerStyle={styles.scrollContent}
-          showsVerticalScrollIndicator={false}
-        >
-          {/* Title: AI Voice Recognition */}
+        <View style={styles.centerStage}>
           <Text style={styles.screenMainTitle}>AI Voice Recognition</Text>
-          <Text style={styles.screenSubStatus}>{statusMessage}</Text>
 
-          {/* Live Memory Learned Glass Toast */}
           {lastMemoryNotice ? (
             <View style={styles.memoryLearnedPill}>
               <Feather name="bookmark" size={14} color={Colors.primary} />
@@ -185,94 +176,14 @@ export default function VoiceAssistantScreen() {
           ) : null}
 
           {/* Centerpiece 3D Iridescent Glass Bubble Orb */}
-          <VoiceButton
-            state={interactionState}
-            recordingSeconds={recordingSeconds}
-            onPress={handlePrimaryMicPress}
-          />
-
-          {/* Two Frosted Glass Square Cards Below the Orb (Matching Mockup) */}
-          <View style={styles.dualGlassCardsRow}>
-            {/* Left Square Glass Card: Voice Clarity Boost / You Spoke */}
-            <Pressable
+          <View style={styles.centeredOrbWrap}>
+            <VoiceButton
+              state={interactionState}
+              recordingSeconds={recordingSeconds}
               onPress={handlePrimaryMicPress}
-              style={({ pressed }) => [
-                styles.glassFeatureSquare,
-                pressed && styles.pressed,
-              ]}
-            >
-              <View style={styles.squareTopIcons}>
-                <View style={styles.squareIconCircle}>
-                  <Feather
-                    name="activity"
-                    size={16}
-                    color={Colors.primary}
-                  />
-                </View>
-                <View style={styles.squareIconCircle}>
-                  <Feather
-                    name="arrow-up-right"
-                    size={15}
-                    color={Colors.textPrimary}
-                  />
-                </View>
-              </View>
-
-              <View>
-                <Text style={styles.squareCardTitle}>
-                  {recognizedSpeechPreview
-                    ? 'You Spoke'
-                    : 'Voice Clarity\nBoost'}
-                </Text>
-                <Text style={styles.squareCardSub} numberOfLines={3}>
-                  {recognizedSpeechPreview ||
-                    'Auto-Listening & Instant Voice Reply Active'}
-                </Text>
-              </View>
-            </Pressable>
-
-            {/* Right Square Glass Card: Instant Speech Capture / Aura's Reply */}
-            <Pressable
-              onPress={() => {
-                setCustomPromptDraft(voiceSettings.customStylePrompt);
-                setTrainModalVisible(true);
-              }}
-              style={({ pressed }) => [
-                styles.glassFeatureSquare,
-                pressed && styles.pressed,
-              ]}
-            >
-              <View style={styles.squareTopIcons}>
-                <View style={styles.squareIconCircle}>
-                  <Feather
-                    name="aperture"
-                    size={16}
-                    color={Colors.accent}
-                  />
-                </View>
-                <View style={styles.squareIconCircle}>
-                  <Feather
-                    name="arrow-up-right"
-                    size={15}
-                    color={Colors.textPrimary}
-                  />
-                </View>
-              </View>
-
-              <View>
-                <Text style={styles.squareCardTitle}>
-                  {assistantResponsePreview
-                    ? "Aura's Reply"
-                    : 'Instant Speech\nCapture'}
-                </Text>
-                <Text style={styles.squareCardSub} numberOfLines={3}>
-                  {assistantResponsePreview ||
-                    `${activePersona.name} · 0.7s instant silence reply`}
-                </Text>
-              </View>
-            </Pressable>
+            />
           </View>
-        </ScrollView>
+        </View>
 
         {/* Train Voice & 5-Persona Selector Modal */}
         <Modal
@@ -524,12 +435,24 @@ const styles = StyleSheet.create({
     paddingBottom: Spacing.xxxl,
     alignItems: 'center',
   },
+  centerStage: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: Spacing.lg,
+    paddingBottom: Spacing.xxxl,
+  },
+  centeredOrbWrap: {
+    marginTop: Spacing.xl,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   screenMainTitle: {
-    fontSize: 21,
+    fontSize: 23,
     fontWeight: '700',
     color: Colors.textPrimary,
     textAlign: 'center',
-    marginTop: 4,
+    letterSpacing: -0.3,
   },
   screenSubStatus: {
     fontSize: 12.5,

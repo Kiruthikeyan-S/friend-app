@@ -180,26 +180,6 @@ export function VoiceButton({
           <View style={styles.innerGlassRing} />
         </Animated.View>
       </Pressable>
-
-      {/* Frosted Glass State Pill Under the Bubble */}
-      <View style={styles.stateGlassPill}>
-        <View
-          style={[
-            styles.liveDot,
-            {
-              backgroundColor:
-                state === 'listening'
-                  ? Colors.primary
-                  : state === 'speaking'
-                  ? Colors.orbCyan
-                  : state === 'processing'
-                  ? Colors.accent
-                  : Colors.success,
-            },
-          ]}
-        />
-        <Text style={styles.stateGlassPillText}>{stateBadgeLabel}</Text>
-      </View>
     </View>
   );
 }
