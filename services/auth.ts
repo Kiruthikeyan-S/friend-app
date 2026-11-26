@@ -1,13 +1,13 @@
 /**
- * Authentication Service Foundation (Prepared for Phase 6 Firebase Authentication)
- *
- * IMPORTANT REQUIREMENT:
- * Does NOT implement fake authentication or pretend a user is logged in.
- * Performs thorough client-side validation and clearly reports Phase 6 Firebase readiness.
+ * Supabase Authentication Service
+ * Real Email & Password Sign-Up, Sign-In, Session Persistence, and Sign-Out
+ * using Supabase Auth (`/auth/v1`).
  */
 
+import { DeviceIdentity } from '@/services/device';
 import {
   AuthAttemptResult,
+  AuthSession,
   LoginCredentials,
   RegisterCredentials,
 } from '@/types/user';
@@ -20,6 +20,27 @@ export interface ValidationErrors {
 }
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+const DEFAULT_SUPABASE_URL = 'https://yrwbsbkbbtnakiwtnxqx.supabase.co';
+const DEFAULT_SUPABASE_ANON_KEY = 'sb_publishable_FcEXRQhJqSPXcMLPX6-Kow__4Bxkw2_';
+
+function getAuthConfig() {
+  const url = (process.env.EXPO_PUBLIC_SUPABASE_URL || DEFAULT_SUPABASE_URL)
+    .trim()
+    .replace(/\/+$/, '');
+  const anonKey = (
+    process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || DEFAULT_SUPABASE_ANON_KEY
+  ).trim();
+  return { url, anonKey };
+}
+
+function buildAuthHeaders(anonKey: string, token?: string): Record<string, string> {
+  return {
+    apikey: anonKey,
+    Authorization: `Bearer ${token || anonKey}`,
+    'Content-Type': 'application/json',
+  };
+}
 
 export const AuthService = {
   validateLogin(credentials: LoginCredentials): ValidationErrors {
@@ -73,10 +94,6 @@ export const AuthService = {
     return errors;
   },
 
-  /**
-   * Prepared entry point for Firebase `signInWithEmailAndPassword`.
-   * Never fakes a session token in Phase 1.
-   */
   async signInWithEmail(credentials: LoginCredentials): Promise<AuthAttemptResult> {
     const errors = this.validateLogin(credentials);
     if (Object.keys(errors).length > 0) {
@@ -88,22 +105,70 @@ export const AuthService = {
       };
     }
 
-    // Honest Phase 6 status — no fake login state
-    return {
-      success: false,
-      requiresIntegration: true,
-      message:
-        'Form validation passed for ' +
-        credentials.email.trim() +
-        '. Firebase Authentication is not yet connected in Phase 1 (scheduled for Phase 6).',
-      phaseNote: 'Awaiting Phase 6: Firebase Auth SDK Integration',
-    };
+    const { url, anonKey } = getAuthConfig();
+    try {
+      const response = await fetch(
+        `${url}/auth/v1/token?grant_type=password`,
+        {
+          method: 'POST',
+          headers: buildAuthHeaders(anonKey),
+          body: JSON.stringify({
+            email: credentials.email.trim(),
+            password: credentials.password,
+          }),
+        }
+      );
+
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok || !data?.access_token || !data?.user?.id) {
+        const msg =
+          data?.error_description ||
+          data?.msg ||
+          data?.message ||
+          'Invalid email or password.';
+        return {
+          success: false,
+          requiresIntegration: false,
+          message: String(msg),
+          phaseNote: 'Sign In Failed',
+        };
+      }
+
+      const fullName =
+        data.user?.user_metadata?.full_name ||
+        credentials.email.trim().split('@')[0];
+
+      const session: AuthSession = {
+        accessToken: String(data.access_token),
+        refreshToken: String(data.refresh_token || ''),
+        userId: String(data.user.id),
+        email: String(data.user.email || credentials.email.trim()),
+        fullName: String(fullName),
+      };
+
+      DeviceIdentity.setActiveUserId(session.userId);
+      await DeviceIdentity.saveAuthSession(session);
+
+      return {
+        success: true,
+        requiresIntegration: false,
+        message: `Welcome back, ${session.fullName}!`,
+        phaseNote: 'Signed In',
+        session,
+      };
+    } catch (err) {
+      return {
+        success: false,
+        requiresIntegration: false,
+        message:
+          err instanceof Error
+            ? `Network error: ${err.message}`
+            : 'Unable to reach Supabase Auth.',
+        phaseNote: 'Connection Error',
+      };
+    }
   },
 
-  /**
-   * Prepared entry point for Firebase `createUserWithEmailAndPassword`.
-   * Never fakes account creation in Phase 1.
-   */
   async registerWithEmail(credentials: RegisterCredentials): Promise<AuthAttemptResult> {
     const errors = this.validateRegistration(credentials);
     if (Object.keys(errors).length > 0) {
@@ -115,13 +180,92 @@ export const AuthService = {
       };
     }
 
-    return {
-      success: false,
-      requiresIntegration: true,
-      message:
-        `Credentials validated for ${credentials.fullName.trim()} (${credentials.email.trim()}). ` +
-        'Account creation requires Firebase Authentication (scheduled for Phase 6).',
-      phaseNote: 'Awaiting Phase 6: Firebase Auth SDK Integration',
-    };
+    const { url, anonKey } = getAuthConfig();
+    try {
+      const response = await fetch(`${url}/auth/v1/signup`, {
+        method: 'POST',
+        headers: buildAuthHeaders(anonKey),
+        body: JSON.stringify({
+          email: credentials.email.trim(),
+          password: credentials.password,
+          data: {
+            full_name: credentials.fullName.trim(),
+          },
+        }),
+      });
+
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        const msg =
+          data?.msg ||
+          data?.error_description ||
+          data?.message ||
+          'Could not create account.';
+        return {
+          success: false,
+          requiresIntegration: false,
+          message: String(msg),
+          phaseNote: 'Registration Failed',
+        };
+      }
+
+      // If email confirmation is disabled in Supabase, access_token is returned immediately
+      if (data?.access_token && data?.user?.id) {
+        const session: AuthSession = {
+          accessToken: String(data.access_token),
+          refreshToken: String(data.refresh_token || ''),
+          userId: String(data.user.id),
+          email: String(data.user.email || credentials.email.trim()),
+          fullName: credentials.fullName.trim(),
+        };
+        DeviceIdentity.setActiveUserId(session.userId);
+        await DeviceIdentity.saveAuthSession(session);
+
+        return {
+          success: true,
+          requiresIntegration: false,
+          message: `Account created for ${session.fullName}!`,
+          phaseNote: 'Account Created',
+          session,
+        };
+      }
+
+      // Otherwise email confirmation link was sent
+      return {
+        success: false,
+        requiresIntegration: false,
+        message: `Account created for ${credentials.email.trim()}! Please check your email inbox to confirm your address, then Sign In.`,
+        phaseNote: 'Confirm Your Email',
+      };
+    } catch (err) {
+      return {
+        success: false,
+        requiresIntegration: false,
+        message:
+          err instanceof Error
+            ? `Network error: ${err.message}`
+            : 'Unable to reach Supabase Auth.',
+        phaseNote: 'Connection Error',
+      };
+    }
+  },
+
+  async restoreSession(): Promise<AuthSession | null> {
+    const saved = await DeviceIdentity.loadAuthSession<AuthSession>();
+    if (!saved?.userId) return null;
+    DeviceIdentity.setActiveUserId(saved.userId);
+    return saved;
+  },
+
+  async signOut(): Promise<void> {
+    const saved = await DeviceIdentity.loadAuthSession<AuthSession>();
+    if (saved?.accessToken) {
+      const { url, anonKey } = getAuthConfig();
+      fetch(`${url}/auth/v1/logout`, {
+        method: 'POST',
+        headers: buildAuthHeaders(anonKey, saved.accessToken),
+      }).catch(() => {});
+    }
+    await DeviceIdentity.clearAuthSession();
   },
 };

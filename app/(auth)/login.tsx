@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import {
+  ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -13,6 +14,7 @@ import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import { Colors, Radius, Spacing } from '@/constants/colors';
+import { AppStore } from '@/services/appStore';
 import { AuthService, ValidationErrors } from '@/services/auth';
 import { AuthAttemptResult } from '@/types/user';
 
@@ -21,6 +23,7 @@ export default function LoginScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [errors, setErrors] = useState<ValidationErrors>({});
   const [authResult, setAuthResult] = useState<AuthAttemptResult | null>(null);
 
@@ -32,8 +35,17 @@ export default function LoginScreen() {
       return;
     }
 
-    const result = await AuthService.signInWithEmail({ email, password });
-    setAuthResult(result);
+    setIsSubmitting(true);
+    try {
+      const result = await AuthService.signInWithEmail({ email, password });
+      setAuthResult(result);
+      if (result.success && result.session) {
+        await AppStore.applyAuthenticatedUser(result.session);
+        router.replace('/(tabs)/chat');
+      }
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -62,8 +74,8 @@ export default function LoginScreen() {
           <View style={styles.headerBlock}>
             <Text style={styles.title}>Welcome back</Text>
             <Text style={styles.subtitle}>
-              Sign in with your email and password. Firebase Authentication
-              integration is prepared for Phase 6.
+              Sign in with your email and password to sync your private chats
+              and personal memories securely.
             </Text>
           </View>
 
@@ -139,22 +151,26 @@ export default function LoginScreen() {
             {/* Submit Button */}
             <Pressable
               onPress={handleSignIn}
+              disabled={isSubmitting}
               style={({ pressed }) => [
                 styles.submitButton,
-                pressed && styles.pressed,
+                (pressed || isSubmitting) && styles.pressed,
               ]}
               accessibilityRole="button"
               accessibilityLabel="Validate and Sign In"
             >
-              <Text style={styles.submitButtonText}>Sign In</Text>
+              {isSubmitting ? (
+                <ActivityIndicator color={Colors.textInverse} />
+              ) : (
+                <Text style={styles.submitButtonText}>Sign In</Text>
+              )}
             </Pressable>
           </View>
 
-          {/* Honest Phase 6 Status Notice (No Fake Authentication) */}
-          {authResult ? (
+          {authResult && !authResult.success ? (
             <View style={styles.integrationNoticeCard}>
               <View style={styles.noticeHeader}>
-                <Feather name="info" size={18} color={Colors.warning} />
+                <Feather name="alert-circle" size={18} color={Colors.warning} />
                 <Text style={styles.noticeTitle}>{authResult.phaseNote}</Text>
               </View>
               <Text style={styles.noticeBody}>{authResult.message}</Text>
@@ -166,7 +182,7 @@ export default function LoginScreen() {
                 ]}
               >
                 <Text style={styles.workspacePreviewBtnText}>
-                  Open Phase 1 Assistant Workspace
+                  Continue as Guest
                 </Text>
                 <Feather name="arrow-right" size={15} color={Colors.primary} />
               </Pressable>

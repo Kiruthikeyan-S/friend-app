@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import {
+  ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -13,6 +14,7 @@ import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import { Colors, Radius, Spacing } from '@/constants/colors';
+import { AppStore } from '@/services/appStore';
 import { AuthService, ValidationErrors } from '@/services/auth';
 import { AuthAttemptResult } from '@/types/user';
 
@@ -23,6 +25,7 @@ export default function RegisterScreen() {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [errors, setErrors] = useState<ValidationErrors>({});
   const [authResult, setAuthResult] = useState<AuthAttemptResult | null>(null);
 
@@ -39,13 +42,22 @@ export default function RegisterScreen() {
       return;
     }
 
-    const result = await AuthService.registerWithEmail({
-      fullName,
-      email,
-      password,
-      confirmPassword,
-    });
-    setAuthResult(result);
+    setIsSubmitting(true);
+    try {
+      const result = await AuthService.registerWithEmail({
+        fullName,
+        email,
+        password,
+        confirmPassword,
+      });
+      setAuthResult(result);
+      if (result.success && result.session) {
+        await AppStore.applyAuthenticatedUser(result.session);
+        router.replace('/(tabs)/chat');
+      }
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -72,8 +84,8 @@ export default function RegisterScreen() {
           <View style={styles.headerBlock}>
             <Text style={styles.title}>Create your account</Text>
             <Text style={styles.subtitle}>
-              Set up your details for Aura. Account persistence will connect via
-              Firebase Authentication in Phase 6.
+              Create your personal Aura account to keep your chats and memories
+              private across devices.
             </Text>
           </View>
 
@@ -205,18 +217,23 @@ export default function RegisterScreen() {
 
             <Pressable
               onPress={handleRegister}
+              disabled={isSubmitting}
               style={({ pressed }) => [
                 styles.submitButton,
-                pressed && styles.pressed,
+                (pressed || isSubmitting) && styles.pressed,
               ]}
               accessibilityRole="button"
               accessibilityLabel="Validate and Register"
             >
-              <Text style={styles.submitButtonText}>Create Account</Text>
+              {isSubmitting ? (
+                <ActivityIndicator color={Colors.textInverse} />
+              ) : (
+                <Text style={styles.submitButtonText}>Create Account</Text>
+              )}
             </Pressable>
           </View>
 
-          {authResult ? (
+          {authResult && !authResult.success ? (
             <View style={styles.integrationNoticeCard}>
               <View style={styles.noticeHeader}>
                 <Feather name="info" size={18} color={Colors.warning} />
@@ -224,14 +241,14 @@ export default function RegisterScreen() {
               </View>
               <Text style={styles.noticeBody}>{authResult.message}</Text>
               <Pressable
-                onPress={() => router.replace('/(tabs)/chat')}
+                onPress={() => router.replace('/(auth)/login')}
                 style={({ pressed }) => [
                   styles.workspacePreviewBtn,
                   pressed && styles.pressed,
                 ]}
               >
                 <Text style={styles.workspacePreviewBtnText}>
-                  Continue to Phase 1 Workspace
+                  Go to Sign In
                 </Text>
                 <Feather name="arrow-right" size={15} color={Colors.primary} />
               </Pressable>

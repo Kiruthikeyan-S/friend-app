@@ -63,9 +63,9 @@ export const SupabaseService = {
     if (!isConfigured) return null;
 
     try {
-      const deviceId = await DeviceIdentity.getDeviceId();
+      const scopeId = await DeviceIdentity.getScopeId();
       const res = await fetch(
-        `${url}/rest/v1/memories?select=id,category,title,content,approved,created_at&user_id=eq.${encodeURIComponent(deviceId)}&order=created_at.desc&limit=50`,
+        `${url}/rest/v1/memories?select=id,category,title,content,approved,created_at&user_id=eq.${encodeURIComponent(scopeId)}&order=created_at.desc&limit=50`,
         {
           headers: buildHeaders(anonKey),
         }
@@ -99,7 +99,7 @@ export const SupabaseService = {
     if (!isConfigured) return false;
 
     try {
-      const deviceId = await DeviceIdentity.getDeviceId();
+      const scopeId = await DeviceIdentity.getScopeId();
       const res = await fetch(`${url}/rest/v1/memories`, {
         method: 'POST',
         headers: buildHeaders(anonKey, {
@@ -107,7 +107,7 @@ export const SupabaseService = {
         }),
         body: JSON.stringify({
           id: item.id,
-          user_id: deviceId,
+          user_id: scopeId,
           category: item.category,
           title: item.title,
           content: item.content,
@@ -125,9 +125,9 @@ export const SupabaseService = {
     if (!isConfigured) return false;
 
     try {
-      const deviceId = await DeviceIdentity.getDeviceId();
+      const scopeId = await DeviceIdentity.getScopeId();
       const res = await fetch(
-        `${url}/rest/v1/memories?id=eq.${encodeURIComponent(id)}&user_id=eq.${encodeURIComponent(deviceId)}`,
+        `${url}/rest/v1/memories?id=eq.${encodeURIComponent(id)}&user_id=eq.${encodeURIComponent(scopeId)}`,
         {
           method: 'DELETE',
           headers: buildHeaders(anonKey),
@@ -144,8 +144,8 @@ export const SupabaseService = {
     if (!isConfigured) return null;
 
     try {
-      const deviceId = await DeviceIdentity.getDeviceId();
-      const pattern = `${deviceId}::*`;
+      const scopeId = await DeviceIdentity.getScopeId();
+      const pattern = `${scopeId}::*`;
       const res = await fetch(
         `${url}/rest/v1/messages?select=id,conversation_id,role,content,created_at&conversation_id=like.${encodeURIComponent(pattern)}&order=inserted_at.desc&limit=100`,
         {
@@ -161,7 +161,7 @@ export const SupabaseService = {
         .map((row: Record<string, unknown>) => ({
           id: String(row.id || `msg-${Date.now()}`),
           conversationId: unscopeConversationId(
-            deviceId,
+            scopeId,
             String(row.conversation_id || 'live-session-1')
           ),
           role: row.role === 'user' ? 'user' : 'assistant',
@@ -179,15 +179,15 @@ export const SupabaseService = {
     if (!isConfigured) return false;
 
     try {
-      const deviceId = await DeviceIdentity.getDeviceId();
+      const scopeId = await DeviceIdentity.getScopeId();
       const res = await fetch(`${url}/rest/v1/messages`, {
         method: 'POST',
         headers: buildHeaders(anonKey, {
           Prefer: 'resolution=merge-duplicates',
         }),
         body: JSON.stringify({
-          id: `${deviceId}::${message.id}`,
-          conversation_id: scopeConversationId(deviceId, message.conversationId),
+          id: `${scopeId}::${message.id}`,
+          conversation_id: scopeConversationId(scopeId, message.conversationId),
           role: message.role,
           content: message.content,
           created_at: message.createdAt,
@@ -204,8 +204,8 @@ export const SupabaseService = {
     if (!isConfigured) return false;
 
     try {
-      const deviceId = await DeviceIdentity.getDeviceId();
-      const pattern = `${deviceId}::*`;
+      const scopeId = await DeviceIdentity.getScopeId();
+      const pattern = `${scopeId}::*`;
       const res = await fetch(
         `${url}/rest/v1/messages?conversation_id=like.${encodeURIComponent(pattern)}`,
         {

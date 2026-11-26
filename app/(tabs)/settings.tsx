@@ -17,6 +17,7 @@ import { GlassBackground } from '@/components/GlassBackground';
 import { Colors, Radius, Spacing } from '@/constants/colors';
 import { AppConfig } from '@/constants/config';
 import { AppStore, useAppStore } from '@/services/appStore';
+import { AuthService } from '@/services/auth';
 import { VoiceService } from '@/services/voice';
 
 export default function SettingsScreen() {
@@ -101,9 +102,15 @@ export default function SettingsScreen() {
               <Text style={styles.profileName}>{userProfile.name}</Text>
               <Text style={styles.profileEmail}>{userProfile.email}</Text>
               <View style={styles.authStatusBadge}>
-                <Feather name="cloud" size={11} color={Colors.success} />
+                <Feather
+                  name={userProfile.authStatus === 'authenticated' ? 'check-circle' : 'cloud'}
+                  size={11}
+                  color={Colors.success}
+                />
                 <Text style={[styles.authStatusText, { color: Colors.success }]}>
-                  Synced with Supabase Cloud
+                  {userProfile.authStatus === 'authenticated'
+                    ? 'Signed In · Supabase Auth'
+                    : 'Guest Device · Tap to Sign In'}
                 </Text>
               </View>
             </View>
@@ -346,7 +353,13 @@ export default function SettingsScreen() {
           <View style={styles.divider} />
 
           <Pressable
-            onPress={() => router.replace('/')}
+            onPress={async () => {
+              if (userProfile.authStatus === 'authenticated') {
+                await AuthService.signOut();
+                await AppStore.signOutUser();
+              }
+              router.replace('/(auth)/login');
+            }}
             style={({ pressed }) => [
               styles.actionRowButton,
               pressed && styles.pressed,
@@ -356,14 +369,22 @@ export default function SettingsScreen() {
           >
             <View style={styles.actionRowLeft}>
               <View style={[styles.actionIconBox, { backgroundColor: Colors.surfaceDanger }]}>
-                <Feather name="log-out" size={16} color={Colors.error} />
+                <Feather
+                  name={userProfile.authStatus === 'authenticated' ? 'log-out' : 'log-in'}
+                  size={16}
+                  color={Colors.error}
+                />
               </View>
               <View>
                 <Text style={[styles.actionRowTitle, { color: Colors.error }]}>
-                  Logout / Exit Workspace
+                  {userProfile.authStatus === 'authenticated'
+                    ? 'Sign Out of Account'
+                    : 'Sign In / Create Account'}
                 </Text>
                 <Text style={styles.actionRowSubtitle}>
-                  Return to Welcome & Authentication screens
+                  {userProfile.authStatus === 'authenticated'
+                    ? 'Sign out and switch accounts cleanly'
+                    : 'Log in with email & password to sync across devices'}
                 </Text>
               </View>
             </View>

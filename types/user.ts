@@ -3,7 +3,15 @@ export interface UserProfile {
   name: string;
   email: string;
   avatarInitials: string;
-  authStatus: 'unauthenticated' | 'pending_firebase_integration';
+  authStatus: 'authenticated' | 'unauthenticated' | 'pending_firebase_integration';
+}
+
+export interface AuthSession {
+  accessToken: string;
+  refreshToken: string;
+  userId: string;
+  email: string;
+  fullName: string;
 }
 
 export interface LoginCredentials {
@@ -23,6 +31,7 @@ export interface AuthAttemptResult {
   requiresIntegration: boolean;
   message: string;
   phaseNote: string;
+  session?: AuthSession;
 }
 
 export interface VoiceSettings {

@@ -47,12 +47,22 @@ export default function WelcomeScreen() {
 
             <View style={styles.topRightGroup}>
               <Pressable
-                onPress={() => router.push('/(auth)/login')}
+                onPress={() =>
+                  router.push(
+                    userProfile.authStatus === 'authenticated'
+                      ? '/(tabs)/settings'
+                      : '/(auth)/login'
+                  )
+                }
                 style={styles.signInGlassPill}
                 accessibilityRole="button"
-                accessibilityLabel="Sign In"
+                accessibilityLabel="Account or Sign In"
               >
-                <Text style={styles.signInGlassText}>Sign In</Text>
+                <Text style={styles.signInGlassText}>
+                  {userProfile.authStatus === 'authenticated'
+                    ? userProfile.name.split(' ')[0]
+                    : 'Sign In'}
+                </Text>
               </Pressable>
 
               <Pressable

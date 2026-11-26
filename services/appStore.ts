@@ -6,6 +6,7 @@
 
 import { useEffect, useState } from 'react';
 import { AppConfig } from '@/constants/config';
+import { AuthService } from '@/services/auth';
 import { DeviceIdentity } from '@/services/device';
 import { SupabaseService } from '@/services/supabase';
 import { ChatMessage, ChatMode, ConversationSession } from '@/types/chat';
@@ -16,7 +17,7 @@ import {
   MemoryItem,
   MemoryPermissions,
 } from '@/types/memory';
-import { UserProfile, VoiceSettings } from '@/types/user';
+import { AuthSession, UserProfile, VoiceSettings } from '@/types/user';
 
 const INITIAL_SESSION_ID = `live-session-${Date.now()}`;
 
@@ -198,7 +199,7 @@ let state: AppState = {
     name: 'Friend',
     email: 'you@aura.ai',
     avatarInitials: 'AU',
-    authStatus: 'pending_firebase_integration',
+    authStatus: 'unauthenticated',
   },
   voiceSettings: {
     selectedVoiceId: 'warm-calm',
@@ -620,11 +621,91 @@ export const AppStore = {
     notify();
   },
 
+  async applyAuthenticatedUser(session: AuthSession): Promise<void> {
+    const initials = session.fullName
+      .split(' ')
+      .map((part) => part[0])
+      .join('')
+      .slice(0, 2)
+      .toUpperCase();
+
+    state = {
+      ...state,
+      userProfile: {
+        id: session.userId,
+        name: session.fullName,
+        email: session.email,
+        avatarInitials: initials || 'AU',
+        authStatus: 'authenticated',
+      },
+    };
+    notify();
+    await this.hydrateFromSupabase();
+  },
+
+  async signOutUser(): Promise<void> {
+    const freshId = `live-session-${Date.now()}`;
+    const greeting: ChatMessage = {
+      ...INITIAL_GREETING_MESSAGE,
+      id: `greeting-${Date.now()}`,
+      conversationId: freshId,
+      createdAt: 'Just now',
+    };
+
+    state = {
+      ...state,
+      chatMode: 'live',
+      activeLiveConversationId: freshId,
+      liveSessions: [
+        {
+          id: freshId,
+          title: 'Current Conversation',
+          previewText: greeting.content,
+          updatedAt: 'Just now',
+          messageCount: 1,
+          isExamplePreview: false,
+        },
+      ],
+      liveMessagesBySession: {
+        [freshId]: [greeting],
+      },
+      memories: INITIAL_MEMORIES,
+      userProfile: {
+        id: 'guest-user',
+        name: 'Friend',
+        email: 'you@aura.ai',
+        avatarInitials: 'AU',
+        authStatus: 'unauthenticated',
+      },
+    };
+    notify();
+  },
+
   /**
-   * Loads this device's private local database first, then merges this device's
-   * isolated memories and chat messages from Supabase.
+   * Restores saved auth session, loads this device's private local database first,
+   * then merges this account/device's isolated memories and chat messages from Supabase.
    */
   async hydrateFromSupabase(): Promise<void> {
+    const savedSession = await AuthService.restoreSession().catch(() => null);
+    if (savedSession) {
+      const initials = savedSession.fullName
+        .split(' ')
+        .map((part) => part[0])
+        .join('')
+        .slice(0, 2)
+        .toUpperCase();
+      state = {
+        ...state,
+        userProfile: {
+          id: savedSession.userId,
+          name: savedSession.fullName,
+          email: savedSession.email,
+          avatarInitials: initials || 'AU',
+          authStatus: 'authenticated',
+        },
+      };
+    }
+
     const localSnapshot = await DeviceIdentity.loadLocalSnapshot<{
       memories?: MemoryItem[];
       liveSessions?: ConversationSession[];
