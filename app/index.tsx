@@ -1,6 +1,6 @@
 import React from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { useRouter } from 'expo-router';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Redirect, useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import { GlassBackground, IridescentMiniOrb } from '@/components/GlassBackground';
@@ -27,7 +27,21 @@ const SMART_HISTORY_SUGGESTIONS = [
 
 export default function WelcomeScreen() {
   const router = useRouter();
-  const { userProfile, memories, liveSessions } = useAppStore();
+  const { userProfile, authHydrated, memories, liveSessions } = useAppStore();
+
+  if (!authHydrated) {
+    return (
+      <GlassBackground>
+        <SafeAreaView style={[styles.safeArea, { justifyContent: 'center', alignItems: 'center' }]}>
+          <ActivityIndicator size="large" color={Colors.primary} />
+        </SafeAreaView>
+      </GlassBackground>
+    );
+  }
+
+  if (userProfile.authStatus !== 'authenticated') {
+    return <Redirect href="/(auth)/login" />;
+  }
 
   return (
     <GlassBackground>

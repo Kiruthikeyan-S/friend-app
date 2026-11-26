@@ -1,9 +1,15 @@
 import React from 'react';
-import { Tabs } from 'expo-router';
+import { Redirect, Tabs } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
 import { Colors } from '@/constants/colors';
+import { useAppStore } from '@/services/appStore';
 
 export default function TabsLayout() {
+  const { userProfile, authHydrated } = useAppStore();
+
+  if (authHydrated && userProfile.authStatus !== 'authenticated') {
+    return <Redirect href="/(auth)/login" />;
+  }
   return (
     <Tabs
       screenOptions={{

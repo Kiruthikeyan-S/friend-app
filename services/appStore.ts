@@ -156,6 +156,7 @@ interface AppState {
   memoryPermissions: MemoryPermissions;
 
   userProfile: UserProfile;
+  authHydrated: boolean;
   voiceSettings: VoiceSettings;
   privacySettings: {
     localAudioCleanup: boolean;
@@ -201,6 +202,7 @@ let state: AppState = {
     avatarInitials: 'AU',
     authStatus: 'unauthenticated',
   },
+  authHydrated: false,
   voiceSettings: {
     selectedVoiceId: 'warm-calm',
     languageCode: 'en-US',
@@ -696,6 +698,7 @@ export const AppStore = {
         .toUpperCase();
       state = {
         ...state,
+        authHydrated: true,
         userProfile: {
           id: savedSession.userId,
           name: savedSession.fullName,
@@ -704,6 +707,13 @@ export const AppStore = {
           authStatus: 'authenticated',
         },
       };
+      notify();
+    } else {
+      state = {
+        ...state,
+        authHydrated: true,
+      };
+      notify();
     }
 
     const localSnapshot = await DeviceIdentity.loadLocalSnapshot<{
@@ -711,7 +721,6 @@ export const AppStore = {
       liveSessions?: ConversationSession[];
       liveMessagesBySession?: Record<string, ChatMessage[]>;
       voiceSettings?: VoiceSettings;
-      userProfile?: UserProfile;
     }>();
 
     if (localSnapshot) {
@@ -726,7 +735,6 @@ export const AppStore = {
         ...state,
         memories: localSnapshot.memories || state.memories,
         voiceSettings: localSnapshot.voiceSettings || state.voiceSettings,
-        userProfile: localSnapshot.userProfile || state.userProfile,
         liveMessagesBySession: mergedMessages,
         liveSessions: [
           ...state.liveSessions,

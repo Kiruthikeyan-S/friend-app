@@ -174,18 +174,6 @@ export default function LoginScreen() {
                 <Text style={styles.noticeTitle}>{authResult.phaseNote}</Text>
               </View>
               <Text style={styles.noticeBody}>{authResult.message}</Text>
-              <Pressable
-                onPress={() => router.replace('/(tabs)/chat')}
-                style={({ pressed }) => [
-                  styles.workspacePreviewBtn,
-                  pressed && styles.pressed,
-                ]}
-              >
-                <Text style={styles.workspacePreviewBtnText}>
-                  Continue as Guest
-                </Text>
-                <Feather name="arrow-right" size={15} color={Colors.primary} />
-              </Pressable>
             </View>
           ) : null}
 

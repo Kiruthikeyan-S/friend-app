@@ -91,8 +91,8 @@ export default function SettingsScreen() {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        {/* 1. User Profile Card */}
-        <Text style={styles.sectionHeading}>User Profile</Text>
+        {/* 1. User Profile Card (Logged-in Account Details) */}
+        <Text style={styles.sectionHeading}>Profile</Text>
         <View style={styles.card}>
           <View style={styles.profileRow}>
             <View style={styles.avatarCircle}>
@@ -103,27 +103,15 @@ export default function SettingsScreen() {
               <Text style={styles.profileEmail}>{userProfile.email}</Text>
               <View style={styles.authStatusBadge}>
                 <Feather
-                  name={userProfile.authStatus === 'authenticated' ? 'check-circle' : 'cloud'}
+                  name="check-circle"
                   size={11}
                   color={Colors.success}
                 />
                 <Text style={[styles.authStatusText, { color: Colors.success }]}>
-                  {userProfile.authStatus === 'authenticated'
-                    ? 'Signed In · Supabase Auth'
-                    : 'Guest Device · Tap to Sign In'}
+                  Signed In · Verified Account
                 </Text>
               </View>
             </View>
-            <Pressable
-              onPress={() => {
-                setEditName(userProfile.name);
-                setEditEmail(userProfile.email);
-                setProfileModalVisible(true);
-              }}
-              style={styles.editProfileBtn}
-            >
-              <Feather name="edit-2" size={15} color={Colors.primary} />
-            </Pressable>
           </View>
         </View>
 
@@ -390,6 +378,42 @@ export default function SettingsScreen() {
             </View>
             <Feather name="chevron-right" size={18} color={Colors.textMuted} />
           </Pressable>
+        </View>
+
+        {/* 7. About App Details */}
+        <Text style={styles.sectionHeading}>About App</Text>
+        <View style={styles.card}>
+          <View style={styles.settingToggleRow}>
+            <View style={styles.settingTextCol}>
+              <Text style={styles.settingTitle}>{AppConfig.appName}</Text>
+              <Text style={styles.settingDesc}>
+                Personal Voice & Text AI Assistant ({AppConfig.version})
+              </Text>
+            </View>
+            <Feather name="info" size={18} color={Colors.primary} />
+          </View>
+
+          <View style={styles.divider} />
+
+          <View style={styles.settingToggleRow}>
+            <View style={styles.settingTextCol}>
+              <Text style={styles.settingTitle}>Voice & Chat Engine</Text>
+              <Text style={styles.settingDesc}>
+                5 smooth country-neutral voices, Whisper Turbo STT, and fast AI replies.
+              </Text>
+            </View>
+          </View>
+
+          <View style={styles.divider} />
+
+          <View style={styles.settingToggleRow}>
+            <View style={styles.settingTextCol}>
+              <Text style={styles.settingTitle}>Private Account Database</Text>
+              <Text style={styles.settingDesc}>
+                Your chats and memories are isolated to your signed-in account and never shared with other users.
+              </Text>
+            </View>
+          </View>
         </View>
       </ScrollView>
 
