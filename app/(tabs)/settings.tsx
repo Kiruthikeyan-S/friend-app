@@ -252,6 +252,21 @@ export default function SettingsScreen() {
                 trackColor={{ false: Colors.border, true: Colors.primary }}
               />
             </View>
+
+            <View style={styles.divider} />
+
+            <View style={styles.settingToggleRow}>
+              <View style={styles.rowLeftWithInfo}>
+                <Text style={styles.settingTitle}>7-Day Data Retention</Text>
+                {renderInfoBtn(
+                  '7-Day Data Retention',
+                  'Temporary chats, unapproved memory candidates, and audio files are automatically deleted every 7 days. Approved memories stay until you delete them.'
+                )}
+              </View>
+              <Text style={{ fontSize: 13, fontWeight: '700', color: Colors.primary }}>
+                Active
+              </Text>
+            </View>
           </View>
 
           {/* 5. About App & Account */}

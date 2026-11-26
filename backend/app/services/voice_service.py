@@ -13,6 +13,8 @@ from typing import Any, Dict, Optional
 from dotenv import load_dotenv
 from openai import OpenAI
 
+from .privacy_service import privacy_service
+
 _ENV_PATH = Path(__file__).resolve().parents[2] / ".env"
 load_dotenv(_ENV_PATH, override=True)
 
@@ -129,11 +131,14 @@ class VoiceService:
                 mime_type,
                 language,
             )
-            print(f"[VOICE STT] Transcript: {transcript!r}")
+            privacy_scan = privacy_service.scan_text(transcript)
+            safe_transcript = privacy_scan.redacted_text
+            print(f"[VOICE STT] Transcript (redacted): {safe_transcript!r}")
             return {
                 "status": "ok",
-                "text": transcript,
+                "text": safe_transcript,
                 "language": language,
+                "privacy_scan": privacy_scan.to_summary(),
             }
         except Exception as exc:
             print(f"[VOICE STT ERROR] {exc}")
