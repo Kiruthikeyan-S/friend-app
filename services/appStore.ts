@@ -6,6 +6,7 @@
 
 import { useEffect, useState } from 'react';
 import { AppConfig } from '@/constants/config';
+import { DeviceIdentity } from '@/services/device';
 import { SupabaseService } from '@/services/supabase';
 import { ChatMessage, ChatMode, ConversationSession } from '@/types/chat';
 import {
@@ -219,6 +220,14 @@ const listeners = new Set<() => void>();
 
 function notify() {
   listeners.forEach((listener) => listener());
+  // Persist this device's private local database snapshot
+  DeviceIdentity.saveLocalSnapshot({
+    memories: state.memories,
+    liveSessions: state.liveSessions,
+    liveMessagesBySession: state.liveMessagesBySession,
+    voiceSettings: state.voiceSettings,
+    userProfile: state.userProfile,
+  });
 }
 
 export const AppStore = {
@@ -506,6 +515,7 @@ export const AppStore = {
         [resetId]: [freshGreeting],
       },
     };
+    SupabaseService.clearDeviceChatMessages();
     notify();
   },
 
@@ -611,10 +621,40 @@ export const AppStore = {
   },
 
   /**
-   * Loads memories and chat messages saved in Supabase and merges them with
-   * the local state (cloud copy wins when the same id exists in both).
+   * Loads this device's private local database first, then merges this device's
+   * isolated memories and chat messages from Supabase.
    */
   async hydrateFromSupabase(): Promise<void> {
+    const localSnapshot = await DeviceIdentity.loadLocalSnapshot<{
+      memories?: MemoryItem[];
+      liveSessions?: ConversationSession[];
+      liveMessagesBySession?: Record<string, ChatMessage[]>;
+      voiceSettings?: VoiceSettings;
+      userProfile?: UserProfile;
+    }>();
+
+    if (localSnapshot) {
+      const mergedMessages = {
+        ...(localSnapshot.liveMessagesBySession || {}),
+        [INITIAL_SESSION_ID]: [INITIAL_GREETING_MESSAGE],
+      };
+      const oldSessions = (localSnapshot.liveSessions || []).filter(
+        (s) => s.id !== INITIAL_SESSION_ID && s.messageCount > 1
+      );
+      state = {
+        ...state,
+        memories: localSnapshot.memories || state.memories,
+        voiceSettings: localSnapshot.voiceSettings || state.voiceSettings,
+        userProfile: localSnapshot.userProfile || state.userProfile,
+        liveMessagesBySession: mergedMessages,
+        liveSessions: [
+          ...state.liveSessions,
+          ...oldSessions,
+        ],
+      };
+      notify();
+    }
+
     const [cloudMemories, cloudMessages] = await Promise.all([
       SupabaseService.fetchApprovedMemories(),
       SupabaseService.fetchChatMessages(),

@@ -1,10 +1,11 @@
 /**
  * Supabase Cloud Persistence Service (HTTPS REST API)
  * Project: https://yrwbsbkbbtnakiwtnxqx.supabase.co
- * Works in Expo Go, Web, and standalone Android `.apk` builds with zero native dependencies.
- * Automatically syncs approved Personal Memories (Phase 7) and Chat Messages (Phase 8).
+ * Strictly scoped per device (`deviceId`) so every device has its own isolated
+ * memories and chat history—never shared across different users or phones.
  */
 
+import { DeviceIdentity } from '@/services/device';
 import { ChatMessage } from '@/types/chat';
 import { MemoryItem, normalizeMemoryCategory } from '@/types/memory';
 
@@ -38,6 +39,20 @@ function buildHeaders(
   };
 }
 
+function scopeConversationId(deviceId: string, conversationId: string): string {
+  const prefix = `${deviceId}::`;
+  return conversationId.startsWith(prefix)
+    ? conversationId
+    : `${prefix}${conversationId}`;
+}
+
+function unscopeConversationId(deviceId: string, rawConversationId: string): string {
+  const prefix = `${deviceId}::`;
+  return rawConversationId.startsWith(prefix)
+    ? rawConversationId.slice(prefix.length)
+    : rawConversationId;
+}
+
 export const SupabaseService = {
   isConfigured(): boolean {
     return getSupabaseConfig().isConfigured;
@@ -48,8 +63,9 @@ export const SupabaseService = {
     if (!isConfigured) return null;
 
     try {
+      const deviceId = await DeviceIdentity.getDeviceId();
       const res = await fetch(
-        `${url}/rest/v1/memories?select=id,category,title,content,approved,created_at&order=created_at.desc&limit=50`,
+        `${url}/rest/v1/memories?select=id,category,title,content,approved,created_at&user_id=eq.${encodeURIComponent(deviceId)}&order=created_at.desc&limit=50`,
         {
           headers: buildHeaders(anonKey),
         }
@@ -83,6 +99,7 @@ export const SupabaseService = {
     if (!isConfigured) return false;
 
     try {
+      const deviceId = await DeviceIdentity.getDeviceId();
       const res = await fetch(`${url}/rest/v1/memories`, {
         method: 'POST',
         headers: buildHeaders(anonKey, {
@@ -90,6 +107,7 @@ export const SupabaseService = {
         }),
         body: JSON.stringify({
           id: item.id,
+          user_id: deviceId,
           category: item.category,
           title: item.title,
           content: item.content,
@@ -107,8 +125,9 @@ export const SupabaseService = {
     if (!isConfigured) return false;
 
     try {
+      const deviceId = await DeviceIdentity.getDeviceId();
       const res = await fetch(
-        `${url}/rest/v1/memories?id=eq.${encodeURIComponent(id)}`,
+        `${url}/rest/v1/memories?id=eq.${encodeURIComponent(id)}&user_id=eq.${encodeURIComponent(deviceId)}`,
         {
           method: 'DELETE',
           headers: buildHeaders(anonKey),
@@ -125,8 +144,10 @@ export const SupabaseService = {
     if (!isConfigured) return null;
 
     try {
+      const deviceId = await DeviceIdentity.getDeviceId();
+      const pattern = `${deviceId}::*`;
       const res = await fetch(
-        `${url}/rest/v1/messages?select=id,conversation_id,role,content,created_at&order=inserted_at.desc&limit=100`,
+        `${url}/rest/v1/messages?select=id,conversation_id,role,content,created_at&conversation_id=like.${encodeURIComponent(pattern)}&order=inserted_at.desc&limit=100`,
         {
           headers: buildHeaders(anonKey),
         }
@@ -139,7 +160,10 @@ export const SupabaseService = {
         .reverse()
         .map((row: Record<string, unknown>) => ({
           id: String(row.id || `msg-${Date.now()}`),
-          conversationId: String(row.conversation_id || 'live-session-1'),
+          conversationId: unscopeConversationId(
+            deviceId,
+            String(row.conversation_id || 'live-session-1')
+          ),
           role: row.role === 'user' ? 'user' : 'assistant',
           content: String(row.content || ''),
           createdAt: String(row.created_at || 'Synced'),
@@ -155,19 +179,40 @@ export const SupabaseService = {
     if (!isConfigured) return false;
 
     try {
+      const deviceId = await DeviceIdentity.getDeviceId();
       const res = await fetch(`${url}/rest/v1/messages`, {
         method: 'POST',
         headers: buildHeaders(anonKey, {
           Prefer: 'resolution=merge-duplicates',
         }),
         body: JSON.stringify({
-          id: message.id,
-          conversation_id: message.conversationId,
+          id: `${deviceId}::${message.id}`,
+          conversation_id: scopeConversationId(deviceId, message.conversationId),
           role: message.role,
           content: message.content,
           created_at: message.createdAt,
         }),
       });
+      return res.ok;
+    } catch {
+      return false;
+    }
+  },
+
+  async clearDeviceChatMessages(): Promise<boolean> {
+    const { url, anonKey, isConfigured } = getSupabaseConfig();
+    if (!isConfigured) return false;
+
+    try {
+      const deviceId = await DeviceIdentity.getDeviceId();
+      const pattern = `${deviceId}::*`;
+      const res = await fetch(
+        `${url}/rest/v1/messages?conversation_id=like.${encodeURIComponent(pattern)}`,
+        {
+          method: 'DELETE',
+          headers: buildHeaders(anonKey),
+        }
+      );
       return res.ok;
     } catch {
       return false;
