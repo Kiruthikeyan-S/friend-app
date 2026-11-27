@@ -30,7 +30,7 @@ class LLMModelConfig:
     primary_provider: str = "ollama_or_groq"
     groq_model: str = os.getenv("GROQ_MODEL", "openai/gpt-oss-20b")
     temperature: float = float(os.getenv("LLM_TEMPERATURE", "0.55"))
-    max_tokens: int = int(os.getenv("LLM_MAX_TOKENS", "300"))
+    max_tokens: int = int(os.getenv("LLM_MAX_TOKENS", "1200"))
     reasoning_effort: str = os.getenv("LLM_REASONING_EFFORT", "low")
 
 
@@ -40,7 +40,10 @@ CORE BEHAVIOR RULES:
 1. Understand the user's true intent BEFORE answering. Answer the exact question directly without unrelated filler.
 2. Maintain full conversation context across turns.
 3. Sound natural, friendly, and human—never robotic or repetitive. Vary your phrasing if recent assistant replies used similar openers.
-4. Adapt answer length and language complexity to the user's preference and the interaction mode (Voice mode: concise 1-3 natural sentences; Text mode: clear and structured as needed).
+4. ADAPTIVE ANSWER LENGTH:
+   - If the user explicitly asks for a short/brief/one-line answer (e.g. "short", "briefly", "in short", "tldr", "quick"), OR it is a simple greeting/yes-no, give a short, crisp 1-3 sentence reply.
+   - If the user asks a big, broad, or descriptive question (e.g., about a movie, Earth, space, science, travel/places, history, how something works, "tell me about...", "explain..."), give a rich, detailed, thorough answer with well-organized points, context, and helpful examples.
+   - In Voice mode, keep answers natural for listening (still detailed when asked about a big topic, concise for quick chat).
 5. If a request is ambiguous or missing key details, ask ONE short, friendly clarifying question instead of guessing.
 6. Never fabricate facts, file paths, or unsupported claims. If you do not know something, say so honestly.
 7. Respond naturally in the same language the user uses (including English and Tamil).
@@ -191,7 +194,7 @@ class LLMService:
         approved_memories: Optional[List[Dict[str, Any]]] = None,
         voice_style_note: Optional[str] = None,
         mode: str = "text",
-        response_length_preference: str = "concise",
+        response_length_preference: str = "adaptive",
     ) -> Dict[str, Any]:
         started = time.perf_counter()
 

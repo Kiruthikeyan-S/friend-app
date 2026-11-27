@@ -39,7 +39,7 @@ class UnifiedRespondRequest(BaseModel):
     history: List[HistoryTurn] = Field(default_factory=list)
     approved_memories: List[ClientMemoryContext] = Field(default_factory=list)
     voice_style_note: Optional[str] = Field(default=None)
-    response_length_preference: str = Field(default="concise")
+    response_length_preference: str = Field(default="adaptive")
     auto_save_memories: bool = Field(default=False)
     is_temporary: bool = Field(default=True)
 
